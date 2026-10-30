@@ -9,6 +9,7 @@ import { Button } from "@heroui/react";
 import { CiEdit } from "react-icons/ci";
 import { MdDelete } from "react-icons/md";
 import { EditCarDetails } from "./EditCarDetails";
+import { DeleteCar } from "./DeleteCar";
 
 const barlow = Barlow({
   subsets: ["latin"],
@@ -137,9 +138,7 @@ export default function CarDetailView({ car }) {
                 <EditCarDetails car={car} key={car._id} />
               </div>
               <div>
-                <Button variant="danger">
-                  Delete <MdDelete />
-                </Button>
+                <DeleteCar car={car} />
               </div>
             </div>
           </div>
