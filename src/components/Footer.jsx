@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Barlow, Caveat } from "next/font/google";
 
@@ -31,6 +32,14 @@ const FOOTER_LINKS = {
 };
 
 export default function Footer() {
+  // FIX: Initialize year as an empty string to prevent hydration mismatch
+  const [year, setYear] = useState("");
+
+  useEffect(() => {
+    // Set the year only after the component mounts on the client
+    setYear(new Date().getFullYear().toString());
+  }, []);
+
   return (
     <footer className={`rn-footer ${barlow.className}`}>
       <div className="footer-main">
@@ -99,10 +108,7 @@ export default function Footer() {
         {/* Bottom Bar */}
         <div className="footer-bottom">
           <div className="bottom-left">
-            <p>
-              © {new Date().getFullYear()} RoadNest Luxury Rentals. All rights
-              reserved.
-            </p>
+            <p>© {year} RoadNest Luxury Rentals. All rights reserved.</p>
           </div>
           <div className={`bottom-right ${caveat.className}`}>
             Drive More, Worry Less.

@@ -1,24 +1,19 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, Suspense } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Barlow, Satisfy } from "next/font/google";
 
-// Clean, modern font for the navigation links
 const barlow = Barlow({ subsets: ["latin"], weight: ["400", "500", "600"] });
-
-// The stylish, premium cursive font that felt right
-const logoFont = Satisfy({
-  subsets: ["latin"],
-  weight: ["400"],
-});
+const logoFont = Satisfy({ subsets: ["latin"], weight: ["400"] });
 
 const NAV_ITEMS = [
   { label: "Home", href: "/" },
   { label: "Explore Cars", href: "/cars" },
   { label: "Add Car", href: "/add-car" },
   { label: "My Bookings", href: "/my-bookings" },
+  { label: "My Added Cars", href: "/my-added-cars" },
 ];
 
 function Logo({ gradId }) {
@@ -65,7 +60,8 @@ function UserIcon() {
   );
 }
 
-export default function Navbar() {
+// 1. We move the logic into a separate component
+function NavbarContent() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const burgerRef = useRef(null);
@@ -110,13 +106,11 @@ export default function Navbar() {
   return (
     <header className={`rn-header ${barlow.className}`}>
       <div className="rn-bar">
-        {/* Brand - DESKTOP */}
         <Link href="/" className="rn-brand">
           <Logo gradId="rn-grad-bar" />
           <span className={logoFont.className}>RoadNest</span>
         </Link>
 
-        {/* Links/Drawer */}
         <nav
           id="rn-drawer"
           className={`rn-links ${open ? "rn-open" : ""}`}
@@ -125,7 +119,6 @@ export default function Navbar() {
           <div className="rn-drawer-head">
             <Link href="/" className="rn-brand" onClick={() => closeDrawer()}>
               <Logo gradId="rn-grad-drawer" />
-              {/* Brand - MOBILE DRAWER */}
               <span className={logoFont.className}>RoadNest</span>
             </Link>
             <button
@@ -170,7 +163,6 @@ export default function Navbar() {
           </Link>
         </nav>
 
-        {/* Right-side actions */}
         <div className="rn-actions">
           <Link href="/login" className="rn-login rn-login-bar">
             <UserIcon />
@@ -215,7 +207,6 @@ export default function Navbar() {
           --rn-accent: #2f8bff;
           --rn-accent-soft: rgba(47, 139, 255, 0.14);
           --rn-h: 64px;
-
           position: sticky;
           top: 0;
           z-index: 100;
@@ -244,7 +235,6 @@ export default function Navbar() {
           border: 0;
           cursor: pointer;
         }
-
         .rn-bar {
           max-width: 1280px;
           margin: 0 auto;
@@ -254,8 +244,6 @@ export default function Navbar() {
           grid-template-columns: 1fr auto 1fr;
           align-items: center;
         }
-
-        /* Brand Styling - Back to Stylish & Balanced */
         .rn-brand {
           display: inline-flex;
           align-items: center;
@@ -269,8 +257,6 @@ export default function Navbar() {
           height: 26px;
           flex: none;
         }
-
-        /* Links */
         .rn-links {
           display: flex;
           align-items: center;
@@ -305,8 +291,6 @@ export default function Navbar() {
         .rn-link.rn-active::after {
           transform: scaleX(1);
         }
-
-        /* Right side */
         .rn-actions {
           justify-self: end;
           display: flex;
@@ -351,14 +335,12 @@ export default function Navbar() {
           width: 16px;
           height: 16px;
         }
-
         .rn-drawer-head,
         .rn-login-drawer,
         .rn-overlay,
         .rn-burger {
           display: none;
         }
-
         @media (max-width: 860px) {
           .rn-bar {
             grid-template-columns: 1fr auto;
@@ -381,7 +363,6 @@ export default function Navbar() {
             width: 24px;
             height: 24px;
           }
-
           .rn-overlay {
             display: block;
             position: fixed;
@@ -399,7 +380,6 @@ export default function Navbar() {
             visibility: visible;
             transition-delay: 0s;
           }
-
           .rn-links {
             position: fixed;
             top: 0;
@@ -425,7 +405,6 @@ export default function Navbar() {
             visibility: visible;
             transition-delay: 0s;
           }
-
           .rn-drawer-head {
             display: flex;
             align-items: center;
@@ -437,7 +416,6 @@ export default function Navbar() {
           .rn-drawer-head .rn-brand {
             font-size: 1.6rem;
           }
-
           .rn-link {
             padding: 14px 16px;
             border-radius: 10px;
@@ -458,7 +436,6 @@ export default function Navbar() {
           .rn-link.rn-active::after {
             transform: scaleY(1);
           }
-
           .rn-login-drawer {
             display: inline-flex;
             justify-content: center;
@@ -466,13 +443,23 @@ export default function Navbar() {
             padding: 12px 16px;
           }
         }
-
-        @media (prefers-reduced-motion: reduce) {
-          .rn-header * {
-            transition-duration: 0.01ms !important;
-          }
-        }
       `}</style>
     </header>
+  );
+}
+
+// 2. Main Navbar export wrapped in Suspense
+export default function Navbar() {
+  return (
+    <Suspense
+      fallback={
+        <div
+          className="rn-header"
+          style={{ height: "64px", background: "#04070d" }}
+        />
+      }
+    >
+      <NavbarContent />
+    </Suspense>
   );
 }

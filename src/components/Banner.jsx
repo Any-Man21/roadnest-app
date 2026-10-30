@@ -97,7 +97,7 @@ export default function UltraLuxuryBanner() {
             </button>
           </div>
 
-          {/* DESKTOP SEARCH - NOW WITH HIGHEST Z-INDEX */}
+          {/* DESKTOP SEARCH */}
           <div className="desktop-search-wrap">
             <form className="search-bar" onSubmit={onSubmit}>
               <div className="field">
@@ -110,7 +110,7 @@ export default function UltraLuxuryBanner() {
                 />
               </div>
 
-              {/* CUSTOM LUXURY DROPDOWN */}
+              {/* CUSTOM LUXURY DROP-UP DROPDOWN */}
               <div className="custom-dropdown">
                 <div
                   className={`field dropdown-trigger ${isTypeOpen ? "active" : ""}`}
@@ -127,9 +127,9 @@ export default function UltraLuxuryBanner() {
                 <AnimatePresence>
                   {isTypeOpen && (
                     <motion.div
-                      initial={{ opacity: 0, y: -10 }}
+                      initial={{ opacity: 0, y: 10 }} // Start slightly lower
                       animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -10 }}
+                      exit={{ opacity: 0, y: 10 }}
                       className="dropdown-menu"
                     >
                       {[
@@ -137,9 +137,9 @@ export default function UltraLuxuryBanner() {
                         "Sports",
                         "SUV",
                         "Electric",
+                        "Sedan",
                         "Hatchback",
                         "Van",
-                        "Sedan",
                       ].map((type) => (
                         <div
                           key={type}
@@ -174,7 +174,7 @@ export default function UltraLuxuryBanner() {
             </form>
           </div>
 
-          {/* FEATURES BAR - LOWER Z-INDEX */}
+          {/* FEATURES BAR */}
           <div className="features-section">
             <div className="features-grid">
               {FEATURES.map((f, i) => (
@@ -258,9 +258,9 @@ export default function UltraLuxuryBanner() {
                           "Sports",
                           "SUV",
                           "Electric",
+                          "Sedan",
                           "Hatchback",
                           "Van",
-                          "Sedan",
                         ].map((type) => (
                           <div
                             key={type}
@@ -306,7 +306,8 @@ export default function UltraLuxuryBanner() {
           display: flex;
           align-items: center;
           background: #05080f;
-          overflow-x: hidden;
+          /* FIX: Changed to overflow: hidden to remove double scrollbars */
+          overflow: hidden;
           z-index: 1;
         }
         .bg-container {
@@ -438,11 +439,11 @@ export default function UltraLuxuryBanner() {
           display: none;
         }
 
-        /* DESKTOP SEARCH - FIXING Z-INDEX */
+        /* DESKTOP SEARCH */
         .desktop-search-wrap {
           margin-top: 4rem;
           position: relative;
-          z-index: 100; /* Lift the whole search area above everything */
+          z-index: 100;
         }
         .search-bar {
           max-width: 950px;
@@ -471,7 +472,7 @@ export default function UltraLuxuryBanner() {
         }
         .field.active {
           border-color: #3aa0ff;
-          background: rgba(0, 0, , 0.7);
+          background: rgba(0, 0, 0, 0.7);
         }
         .field input {
           background: transparent;
@@ -496,7 +497,7 @@ export default function UltraLuxuryBanner() {
           background: #1f6fe0;
         }
 
-        /* Custom Dropdown Styles */
+        /* Custom Drop-UP Styles */
         .custom-dropdown {
           position: relative;
           width: 100%;
@@ -520,15 +521,15 @@ export default function UltraLuxuryBanner() {
         }
         .dropdown-menu {
           position: absolute;
-          top: 72px; /* Adjusted to sit exactly below the field */
+          bottom: 72px; /* FIX: Changed from top to bottom to open UPWARDS */
           left: 0;
           right: 0;
           background: #0b1224;
           border: 1px solid rgba(255, 255, 255, 0.1);
           border-radius: 15px;
           overflow: hidden;
-          z-index: 999999; /* Max z-index to ensure it's over the footer */
-          box-shadow: 0 20px 40px rgba(0, 0, 0, 0.8);
+          z-index: 999999;
+          box-shadow: 0 -20px 40px rgba(0, 0, 0, 0.8);
         }
         .dropdown-item {
           padding: 14px 15px;
@@ -543,7 +544,7 @@ export default function UltraLuxuryBanner() {
           color: white;
         }
 
-        /* Features - Lower Z-Index */
+        /* Features */
         .features-section {
           margin-top: 4rem;
           display: flex;
@@ -551,8 +552,6 @@ export default function UltraLuxuryBanner() {
           align-items: center;
           border-top: 1px solid rgba(255, 255, 255, 0.1);
           padding-top: 2rem;
-          position: relative;
-          z-index: 1; /* Lower than search wrap */
         }
         .features-grid {
           display: grid;
