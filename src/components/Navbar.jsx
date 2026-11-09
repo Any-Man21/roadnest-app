@@ -9,13 +9,25 @@ import { authClient } from "@/lib/auth-client";
 const barlow = Barlow({ subsets: ["latin"], weight: ["400", "500", "600"] });
 const logoFont = Satisfy({ subsets: ["latin"], weight: ["400"] });
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+
 const NAV_ITEMS = [
   { label: "Home", href: "/" },
   { label: "Explore Cars", href: "/cars" },
   { label: "Add Car", href: "/add-car" },
   { label: "My Bookings", href: "/my-bookings" },
   { label: "My Added Cars", href: "/my-added-cars" },
+  { label: "Orders", href: "/orders" },
 ];
+
+function OrderBadge({ count }) {
+  if (!count || count <= 0) return null;
+  return (
+    <span className="absolute -top-1 -right-2 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-orange-500 px-1 text-[10px] font-bold text-white ring-2 ring-[#0b1626] animate-in zoom-in duration-300">
+      {count > 99 ? "99+" : count}
+    </span>
+  );
+}
 
 function Logo({ gradId }) {
   return (
@@ -82,7 +94,6 @@ function LogoutIcon() {
 function Avatar({ user, name, large = false }) {
   const [failed, setFailed] = useState(false);
   const cls = `rn-avatar ${large ? "rn-avatar-lg" : ""}`;
-
   if (user?.image && !failed) {
     return (
       <img
@@ -94,10 +105,9 @@ function Avatar({ user, name, large = false }) {
       />
     );
   }
-
   return (
     <span className={cls} aria-hidden="true">
-      {name.charAt(0).toUpperCase()}
+      {(name || "?").charAt(0).toUpperCase()}
     </span>
   );
 }
@@ -108,6 +118,8 @@ function NavbarContent() {
   const [open, setOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [orderCount, setOrderCount] = useState(0);
+  const [lastSeenCount, setLastSeenCount] = useState(0);
   const burgerRef = useRef(null);
   const closeRef = useRef(null);
   const cancelRef = useRef(null);
@@ -116,12 +128,52 @@ function NavbarContent() {
   const user = session?.user;
   const name = user?.name || user?.email?.split("@")[0] || "User";
 
-  // Logout button click: open the confirm popup
+  // Load the 'last seen' count from localStorage on mount
+  useEffect(() => {
+    const saved = localStorage.getItem("rn_last_seen_orders");
+    if (saved) setLastSeenCount(parseInt(saved, 10));
+  }, []);
+
+  // Polling logic to update order count
+  useEffect(() => {
+    if (!user?.id) return;
+
+    async function updateOrderCount() {
+      try {
+        const res = await fetch(
+          `${API_URL}/orders?ownerId=${encodeURIComponent(user.id)}`,
+        );
+        if (res.ok) {
+          const data = await res.json();
+          const count = Array.isArray(data) ? data.length : 0;
+          setOrderCount(count);
+        }
+      } catch (e) {
+        console.error("Order fetch failed", e);
+      }
+    }
+
+    updateOrderCount();
+    const interval = setInterval(updateOrderCount, 10000);
+    return () => clearInterval(interval);
+  }, [user?.id]);
+
+  // MARK AS READ: When user visits the orders page, save the current count
+  useEffect(() => {
+    if (pathname === "/orders" && orderCount > 0) {
+      setLastSeenCount(orderCount);
+      localStorage.setItem("rn_last_seen_orders", String(orderCount));
+    }
+  }, [pathname, orderCount]);
+
+  // Calculate unread orders (only show if total > what we last saw)
+  const unreadCount =
+    orderCount > lastSeenCount ? orderCount - lastSeenCount : 0;
+
   function handleLogout() {
     setConfirmOpen(true);
   }
 
-  // "Yes, log out": sign out, then go to home page
   async function confirmLogout() {
     setLoggingOut(true);
     try {
@@ -138,7 +190,6 @@ function NavbarContent() {
     href === "/"
       ? pathname === "/"
       : pathname === href || pathname.startsWith(href + "/");
-
   const closeDrawer = (returnFocus = false) => {
     setOpen(false);
     if (returnFocus) burgerRef.current?.focus();
@@ -163,7 +214,6 @@ function NavbarContent() {
     return () => document.removeEventListener("keydown", onKey);
   }, [open]);
 
-  // Confirm popup: focus Cancel, close on Escape
   useEffect(() => {
     if (!confirmOpen) return;
     cancelRef.current?.focus();
@@ -174,7 +224,7 @@ function NavbarContent() {
   }, [confirmOpen, loggingOut]);
 
   useEffect(() => {
-    const mq = window.matchMedia("(max-width: 860px)");
+    const mq = window.matchMedia("(max-width: 980px)");
     const onChange = (e) => !e.matches && setOpen(false);
     mq.addEventListener("change", onChange);
     return () => mq.removeEventListener("change", onChange);
@@ -211,7 +261,6 @@ function NavbarContent() {
                 stroke="currentColor"
                 strokeWidth="2"
                 strokeLinecap="round"
-                aria-hidden="true"
               >
                 <path d="M6 6l12 12M18 6L6 18" />
               </svg>
@@ -234,15 +283,14 @@ function NavbarContent() {
             <Link
               key={href}
               href={href}
-              className={`rn-link ${isActive(href) ? "rn-active" : ""}`}
-              aria-current={isActive(href) ? "page" : undefined}
+              className={`rn-link relative ${isActive(href) ? "rn-active" : ""}`}
               onClick={() => closeDrawer()}
             >
               {label}
+              {label === "Orders" && <OrderBadge count={unreadCount} />}
             </Link>
           ))}
 
-          {/* Drawer: login only when logged out */}
           {!isPending && !user && (
             <Link
               href="/register"
@@ -269,7 +317,6 @@ function NavbarContent() {
               <button
                 type="button"
                 className="rn-logout rn-logout-bar"
-                aria-label="Logout"
                 onClick={handleLogout}
               >
                 <LogoutIcon />
@@ -286,10 +333,7 @@ function NavbarContent() {
           <button
             ref={burgerRef}
             type="button"
-            className="rn-burger"
-            aria-label="Open menu"
-            aria-expanded={open}
-            aria-controls="rn-drawer"
+            className="rn-burger relative"
             onClick={() => setOpen(true)}
           >
             <svg
@@ -298,10 +342,10 @@ function NavbarContent() {
               stroke="currentColor"
               strokeWidth="2"
               strokeLinecap="round"
-              aria-hidden="true"
             >
               <path d="M4 7h16M4 12h16M4 17h16" />
             </svg>
+            <OrderBadge count={unreadCount} />
           </button>
         </div>
       </div>
@@ -311,25 +355,16 @@ function NavbarContent() {
         onClick={() => closeDrawer(true)}
       />
 
-      {/* Logout confirm popup */}
       {confirmOpen && (
         <div
           className="rn-modal-backdrop"
           onClick={() => !loggingOut && setConfirmOpen(false)}
         >
-          <div
-            className="rn-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="rn-logout-title"
-            onClick={(e) => e.stopPropagation()}
-          >
+          <div className="rn-modal" onClick={(e) => e.stopPropagation()}>
             <div className="rn-modal-icon">
               <LogoutIcon />
             </div>
-            <h2 id="rn-logout-title" className="rn-modal-title">
-              Log out?
-            </h2>
+            <h2 className="rn-modal-title">Log out?</h2>
             <p className="rn-modal-text">
               Are you sure you want to log out of RoadNest?
             </p>
@@ -495,7 +530,6 @@ function NavbarContent() {
           width: 16px;
           height: 16px;
         }
-
         .rn-user {
           display: flex;
           align-items: center;
@@ -564,8 +598,6 @@ function NavbarContent() {
             opacity: 0.4;
           }
         }
-
-        /* ---- Logout confirm popup ---- */
         .rn-modal-backdrop {
           position: fixed;
           inset: 0;
@@ -671,7 +703,6 @@ function NavbarContent() {
             animation: none;
           }
         }
-
         .rn-drawer-head,
         .rn-login-drawer,
         .rn-user-card,
@@ -680,10 +711,12 @@ function NavbarContent() {
         .rn-burger {
           display: none;
         }
-
         @media (max-width: 1100px) {
           .rn-links {
-            gap: 22px;
+            gap: 16px;
+          }
+          .rn-link {
+            font-size: 0.88rem;
           }
           .rn-user-name,
           .rn-logout-text {
@@ -693,8 +726,7 @@ function NavbarContent() {
             padding: 8px 10px;
           }
         }
-
-        @media (max-width: 860px) {
+        @media (max-width: 980px) {
           .rn-bar {
             grid-template-columns: 1fr auto;
             padding: 0 16px;
