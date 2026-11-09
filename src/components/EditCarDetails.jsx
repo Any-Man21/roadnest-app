@@ -273,7 +273,7 @@ export function EditCarDetails({ car }) {
   return (
     <Modal>
       <Button variant="secondary" onPress={() => setIsOpen(true)}>
-        Edit <CiEdit />
+        Update <CiEdit />
       </Button>
 
       <Modal.Backdrop isOpen={isOpen} onOpenChange={setIsOpen}>

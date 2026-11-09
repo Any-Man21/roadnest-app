@@ -2,8 +2,9 @@
 
 import { useEffect, useRef, useState, Suspense } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Barlow, Satisfy } from "next/font/google";
+import { authClient } from "@/lib/auth-client";
 
 const barlow = Barlow({ subsets: ["latin"], weight: ["400", "500", "600"] });
 const logoFont = Satisfy({ subsets: ["latin"], weight: ["400"] });
@@ -60,12 +61,78 @@ function UserIcon() {
   );
 }
 
-// 1. We move the logic into a separate component
+function LogoutIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+      <path d="M16 17l5-5-5-5" />
+      <path d="M21 12H9" />
+    </svg>
+  );
+}
+
+function Avatar({ user, name, large = false }) {
+  const [failed, setFailed] = useState(false);
+  const cls = `rn-avatar ${large ? "rn-avatar-lg" : ""}`;
+
+  if (user?.image && !failed) {
+    return (
+      <img
+        src={user.image}
+        alt=""
+        referrerPolicy="no-referrer"
+        onError={() => setFailed(true)}
+        className={cls}
+      />
+    );
+  }
+
+  return (
+    <span className={cls} aria-hidden="true">
+      {name.charAt(0).toUpperCase()}
+    </span>
+  );
+}
+
 function NavbarContent() {
   const pathname = usePathname();
+  const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
   const burgerRef = useRef(null);
   const closeRef = useRef(null);
+  const cancelRef = useRef(null);
+
+  const { data: session, isPending } = authClient.useSession();
+  const user = session?.user;
+  const name = user?.name || user?.email?.split("@")[0] || "User";
+
+  // Logout button click: open the confirm popup
+  function handleLogout() {
+    setConfirmOpen(true);
+  }
+
+  // "Yes, log out": sign out, then go to home page
+  async function confirmLogout() {
+    setLoggingOut(true);
+    try {
+      const { error } = await authClient.signOut();
+      if (error) return;
+      setConfirmOpen(false);
+      router.push("/");
+    } finally {
+      setLoggingOut(false);
+    }
+  }
 
   const isActive = (href) =>
     href === "/"
@@ -95,6 +162,16 @@ function NavbarContent() {
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [open]);
+
+  // Confirm popup: focus Cancel, close on Escape
+  useEffect(() => {
+    if (!confirmOpen) return;
+    cancelRef.current?.focus();
+    const onKey = (e) =>
+      e.key === "Escape" && !loggingOut && setConfirmOpen(false);
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [confirmOpen, loggingOut]);
 
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 860px)");
@@ -141,6 +218,18 @@ function NavbarContent() {
             </button>
           </div>
 
+          {user && (
+            <div className="rn-user-card">
+              <Link href="/profile">
+                <Avatar user={user} name={name} large />
+              </Link>
+              <div className="rn-user-meta">
+                <strong>{name}</strong>
+                {user.email && <span>{user.email}</span>}
+              </div>
+            </div>
+          )}
+
           {NAV_ITEMS.map(({ label, href }) => (
             <Link
               key={href}
@@ -153,21 +242,46 @@ function NavbarContent() {
             </Link>
           ))}
 
-          <Link
-            href="/login"
-            className="rn-login rn-login-drawer"
-            onClick={() => closeDrawer()}
-          >
-            <UserIcon />
-            Login / Register
-          </Link>
+          {/* Drawer: login only when logged out */}
+          {!isPending && !user && (
+            <Link
+              href="/register"
+              className="rn-login rn-login-drawer"
+              onClick={() => closeDrawer()}
+            >
+              <UserIcon />
+              Login / Register
+            </Link>
+          )}
         </nav>
 
         <div className="rn-actions">
-          <Link href="/login" className="rn-login rn-login-bar">
-            <UserIcon />
-            Login / Register
-          </Link>
+          {isPending ? (
+            <div className="rn-skel" aria-hidden="true" />
+          ) : user ? (
+            <>
+              <div className="rn-user" title={name}>
+                <Link href="/profile" className="rn-user" title={name}>
+                  <Avatar user={user} name={name} />
+                  <span className="rn-user-name">{name}</span>
+                </Link>
+              </div>
+              <button
+                type="button"
+                className="rn-logout rn-logout-bar"
+                aria-label="Logout"
+                onClick={handleLogout}
+              >
+                <LogoutIcon />
+                <span className="rn-logout-text">Logout</span>
+              </button>
+            </>
+          ) : (
+            <Link href="/register" className="rn-login rn-login-bar">
+              <UserIcon />
+              Login / Register
+            </Link>
+          )}
 
           <button
             ref={burgerRef}
@@ -196,6 +310,51 @@ function NavbarContent() {
         className={`rn-overlay ${open ? "rn-open" : ""}`}
         onClick={() => closeDrawer(true)}
       />
+
+      {/* Logout confirm popup */}
+      {confirmOpen && (
+        <div
+          className="rn-modal-backdrop"
+          onClick={() => !loggingOut && setConfirmOpen(false)}
+        >
+          <div
+            className="rn-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="rn-logout-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="rn-modal-icon">
+              <LogoutIcon />
+            </div>
+            <h2 id="rn-logout-title" className="rn-modal-title">
+              Log out?
+            </h2>
+            <p className="rn-modal-text">
+              Are you sure you want to log out of RoadNest?
+            </p>
+            <div className="rn-modal-actions">
+              <button
+                ref={cancelRef}
+                type="button"
+                className="rn-modal-btn"
+                disabled={loggingOut}
+                onClick={() => setConfirmOpen(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="rn-modal-btn rn-modal-danger"
+                disabled={loggingOut}
+                onClick={confirmLogout}
+              >
+                {loggingOut ? "Logging out…" : "Yes, log out"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <style jsx global>{`
         .rn-header {
@@ -296,6 +455,7 @@ function NavbarContent() {
           display: flex;
           align-items: center;
           gap: 14px;
+          min-width: 0;
         }
         .rn-icon-btn {
           display: grid;
@@ -335,19 +495,220 @@ function NavbarContent() {
           width: 16px;
           height: 16px;
         }
+
+        .rn-user {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          min-width: 0;
+        }
+        .rn-user-name {
+          max-width: 140px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          font-size: 0.85rem;
+          font-weight: 600;
+        }
+        .rn-avatar {
+          display: grid;
+          place-items: center;
+          flex: none;
+          width: 34px;
+          height: 34px;
+          border-radius: 50%;
+          object-fit: cover;
+          border: 2px solid rgba(120, 160, 220, 0.45);
+          background: linear-gradient(135deg, #5ab0ff, #1f5fd6);
+          font-size: 0.9rem;
+          font-weight: 600;
+          color: #fff;
+        }
+        .rn-avatar-lg {
+          width: 44px;
+          height: 44px;
+          font-size: 1.1rem;
+        }
+        .rn-header .rn-logout {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          padding: 8px 14px;
+          border-radius: 999px;
+          border: 1px solid rgba(248, 113, 113, 0.35);
+          background: rgba(248, 113, 113, 0.08);
+          font-size: 0.85rem;
+          font-weight: 600;
+          white-space: nowrap;
+          transition:
+            background 0.2s ease,
+            border-color 0.2s ease;
+        }
+        .rn-header .rn-logout:hover {
+          background: rgba(248, 113, 113, 0.2);
+          border-color: #f87171;
+        }
+        .rn-logout svg {
+          width: 16px;
+          height: 16px;
+        }
+        .rn-skel {
+          width: 150px;
+          height: 36px;
+          border-radius: 999px;
+          background: rgba(255, 255, 255, 0.06);
+          animation: rn-pulse 1.4s ease-in-out infinite;
+        }
+        @keyframes rn-pulse {
+          50% {
+            opacity: 0.4;
+          }
+        }
+
+        /* ---- Logout confirm popup ---- */
+        .rn-modal-backdrop {
+          position: fixed;
+          inset: 0;
+          z-index: 200;
+          display: grid;
+          place-items: center;
+          padding: 16px;
+          background: rgba(2, 6, 12, 0.7);
+          backdrop-filter: blur(4px);
+          animation: rn-fade 0.2s ease both;
+        }
+        .rn-modal {
+          width: min(100%, 400px);
+          padding: 28px 24px 22px;
+          text-align: center;
+          border-radius: 20px;
+          border: 1px solid var(--rn-line);
+          background: linear-gradient(180deg, var(--rn-bg-2), var(--rn-bg-1));
+          box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6);
+          animation: rn-pop 0.25s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+        }
+        .rn-modal-icon {
+          display: grid;
+          place-items: center;
+          width: 52px;
+          height: 52px;
+          margin: 0 auto 14px;
+          border-radius: 50%;
+          color: #f87171;
+          border: 1px solid rgba(248, 113, 113, 0.35);
+          background: rgba(248, 113, 113, 0.1);
+        }
+        .rn-modal-icon svg {
+          width: 24px;
+          height: 24px;
+        }
+        .rn-modal-title {
+          margin: 0;
+          font-size: 1.25rem;
+          font-weight: 600;
+        }
+        .rn-modal-text {
+          margin: 8px 0 22px;
+          font-size: 0.92rem;
+          color: var(--rn-muted);
+        }
+        .rn-modal-actions {
+          display: flex;
+          gap: 10px;
+        }
+        .rn-header .rn-modal-btn {
+          flex: 1;
+          height: 42px;
+          padding: 0 14px;
+          border-radius: 10px;
+          border: 1px solid var(--rn-line);
+          background: rgba(255, 255, 255, 0.06);
+          font-size: 0.9rem;
+          font-weight: 600;
+          transition:
+            background 0.2s ease,
+            border-color 0.2s ease,
+            transform 0.15s ease;
+        }
+        .rn-header .rn-modal-btn:hover:not(:disabled) {
+          background: rgba(255, 255, 255, 0.12);
+        }
+        .rn-header .rn-modal-btn:active:not(:disabled) {
+          transform: scale(0.98);
+        }
+        .rn-header .rn-modal-btn:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+        }
+        .rn-header .rn-modal-danger {
+          border-color: rgba(248, 113, 113, 0.5);
+          background: #dc2626;
+        }
+        .rn-header .rn-modal-danger:hover:not(:disabled) {
+          background: #ef4444;
+        }
+        @keyframes rn-fade {
+          from {
+            opacity: 0;
+          }
+          to {
+            opacity: 1;
+          }
+        }
+        @keyframes rn-pop {
+          from {
+            opacity: 0;
+            transform: translateY(8px) scale(0.96);
+          }
+          to {
+            opacity: 1;
+            transform: none;
+          }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .rn-modal-backdrop,
+          .rn-modal {
+            animation: none;
+          }
+        }
+
         .rn-drawer-head,
         .rn-login-drawer,
+        .rn-user-card,
+        .rn-logout-drawer,
         .rn-overlay,
         .rn-burger {
           display: none;
         }
+
+        @media (max-width: 1100px) {
+          .rn-links {
+            gap: 22px;
+          }
+          .rn-user-name,
+          .rn-logout-text {
+            display: none;
+          }
+          .rn-header .rn-logout-bar {
+            padding: 8px 10px;
+          }
+        }
+
         @media (max-width: 860px) {
           .rn-bar {
             grid-template-columns: 1fr auto;
             padding: 0 16px;
           }
-          .rn-login-bar {
+          .rn-actions {
+            gap: 10px;
+          }
+          .rn-login-bar,
+          .rn-logout-bar {
             display: none;
+          }
+          .rn-skel {
+            width: 34px;
+            height: 34px;
           }
           .rn-burger {
             display: grid;
@@ -387,6 +748,7 @@ function NavbarContent() {
             z-index: 120;
             width: min(320px, 85vw);
             height: 100vh;
+            height: 100dvh;
             flex-direction: column;
             align-items: stretch;
             gap: 4px;
@@ -416,6 +778,35 @@ function NavbarContent() {
           .rn-drawer-head .rn-brand {
             font-size: 1.6rem;
           }
+          .rn-user-card {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            margin-bottom: 8px;
+            border-radius: 12px;
+            border: 1px solid var(--rn-line);
+            background: var(--rn-accent-soft);
+          }
+          .rn-user-meta {
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+          }
+          .rn-user-meta strong {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-size: 0.95rem;
+            font-weight: 600;
+          }
+          .rn-user-meta span {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-size: 0.78rem;
+            color: var(--rn-muted);
+          }
           .rn-link {
             padding: 14px 16px;
             border-radius: 10px;
@@ -442,13 +833,18 @@ function NavbarContent() {
             margin-top: 20px;
             padding: 12px 16px;
           }
+          .rn-header .rn-logout-drawer {
+            display: inline-flex;
+            justify-content: center;
+            margin-top: auto;
+            padding: 12px 16px;
+          }
         }
       `}</style>
     </header>
   );
 }
 
-// 2. Main Navbar export wrapped in Suspense
 export default function Navbar() {
   return (
     <Suspense
