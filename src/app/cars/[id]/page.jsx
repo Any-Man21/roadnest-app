@@ -1,12 +1,24 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import CarDetailView from "@/components/CarDetailView";
+import { auth } from "@/lib/auth";
+import { headers } from "next/headers";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
 async function getCar(id) {
   try {
-    const res = await fetch(`${API_URL}/cars/${id}`, { cache: "no-store" });
+    const tokenResponse = await auth.api.getToken({
+      headers: await headers(),
+    });
+    const token = tokenResponse?.token;
+    // console.log(token);
+    const res = await fetch(`${API_URL}/cars/${id}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      cache: "no-store",
+    });
     if (!res.ok) return null;
     return await res.json();
   } catch {

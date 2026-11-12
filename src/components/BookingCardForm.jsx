@@ -1,191 +1,3 @@
-// "use client";
-
-// import { authClient } from "@/lib/auth-client";
-// import { useState } from "react";
-// import toast, { Toaster } from "react-hot-toast";
-
-// export default function BookingCardForm({ carId, carName, price, imageURL }) {
-//   const [isOpen, setIsOpen] = useState(false);
-//   const [loading, setLoading] = useState(false);
-//   const [formData, setFormData] = useState({
-//     driverNeeded: "No",
-//     specialNote: "",
-//   });
-
-//   //   session
-//   const { data: session } = authClient.useSession();
-//   const user = session?.user;
-
-//   // Handle input changes
-//   const handleChange = (e) => {
-//     const { name, value } = e.target;
-//     setFormData((prev) => ({ ...prev, [name]: value }));
-//   };
-
-//   // Handle Form Submission
-//   async function handleBooking(e) {
-//     e.preventDefault();
-//     setLoading(true);
-
-//     try {
-//       // TODO:
-//       // const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/bookings`, {
-//       //   method: "POST",
-//       //   headers: { "Content-Type": "application/json" },
-//       //   body: JSON.stringify({ carId, ...formData }),
-//       // });
-
-//       // Simulating API call
-
-//       const bookingData = {
-//         userId: user.id,
-//         userImage: user.image,
-//         userName: user.name,
-//         userEmail: user.email,
-//         carId,
-//         carName,
-//         driverNeeded: formData.driverNeeded,
-//         specialNote: formData.specialNote,
-//         date: new Date().toISOString(),
-//         // price,
-//         // imageURL,
-//       };
-//       console.log(bookingData);
-
-//       await new Promise((resolve) => setTimeout(resolve, 1500));
-
-//       toast.success(`Booking request sent for ${carName}!`);
-//       setIsOpen(false); // Close modal on success
-//       setFormData({ driverNeeded: "No", specialNote: "" }); // Reset form
-//     } catch (error) {
-//       toast.error("Something went wrong. Please try again.");
-//     } finally {
-//       setLoading(false);
-//     }
-//   }
-
-//   return (
-//     <>
-//       <Toaster position="top-center" />
-
-//       {/* 1. The Trigger Button */}
-//       <button
-//         onClick={() => setIsOpen(true)}
-//         className="w-full inline-flex h-11 items-center justify-center rounded-full bg-gradient-to-br from-blue-400 to-blue-600 px-6 text-sm font-semibold text-white shadow-lg shadow-blue-500/30 transition hover:-translate-y-0.5 hover:shadow-blue-500/50 active:scale-95 hover:cursor-pointer"
-//       >
-//         Book Now
-//       </button>
-
-//       {/* 2. The Modal Overlay */}
-//       {isOpen && (
-//         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
-//           {/* Backdrop */}
-//           <div
-//             className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
-//             onClick={() => setIsOpen(false)}
-//           />
-
-//           {/* Modal Card */}
-//           <div className="relative w-full max-w-md transform overflow-hidden rounded-3xl border border-white/10 bg-[#0a1424] p-6 shadow-2xl transition-all animate-in fade-in zoom-in duration-300">
-//             {/* Close Button */}
-//             <button
-//               onClick={() => setIsOpen(false)}
-//               className="absolute right-4 top-4 text-slate-400 hover:text-white transition"
-//             >
-//               <svg
-//                 viewBox="0 0 24 24"
-//                 fill="none"
-//                 stroke="currentColor"
-//                 strokeWidth="2"
-//                 className="h-6 w-6"
-//               >
-//                 <path d="M18 6L6 18M6 6l12 12" />
-//               </svg>
-//             </button>
-
-//             {/* Form Content */}
-//             <div className="mb-6">
-//               <h2 className="text-2xl font-bold text-white">Confirm Booking</h2>
-//               <p className="text-sm text-slate-400 mt-1">
-//                 Complete the details for{" "}
-//                 <span className="text-blue-400 font-medium">{carName}</span>
-//               </p>
-//             </div>
-
-//             <form onSubmit={handleBooking} className="space-y-5">
-//               {/* Driver Needed Field */}
-//               <div className="flex flex-col gap-2">
-//                 <label className="text-sm font-medium text-slate-200">
-//                   Driver Needed?
-//                 </label>
-//                 <select
-//                   name="driverNeeded"
-//                   value={formData.driverNeeded}
-//                   onChange={handleChange}
-//                   className="h-11 w-full rounded-lg border border-white/10 bg-[#0e1b30] px-3 text-sm text-white outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-400/30"
-//                 >
-//                   <option value="No">No, I will drive</option>
-//                   <option value="Yes">Yes, I need a driver</option>
-//                 </select>
-//               </div>
-
-//               {/* Special Note Field */}
-//               <div className="flex flex-col gap-2">
-//                 <label className="text-sm font-medium text-slate-200">
-//                   Special Note
-//                 </label>
-//                 <textarea
-//                   name="specialNote"
-//                   value={formData.specialNote}
-//                   onChange={handleChange}
-//                   placeholder="Any specific requests or pickup details..."
-//                   rows="3"
-//                   className="w-full rounded-lg border border-white/10 bg-[#0e1b30] p-3 text-sm text-white outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-400/30 placeholder:text-slate-500"
-//                 />
-//               </div>
-
-//               {/* Confirm Button */}
-//               <button
-//                 type="submit"
-//                 disabled={loading}
-//                 onClick={handleBooking}
-//                 className="w-full h-12 rounded-xl bg-gradient-to-r from-blue-500 to-blue-700 text-sm font-bold text-white shadow-lg shadow-blue-500/30 transition hover:brightness-110 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed hover:cursor-pointer"
-//               >
-//                 {loading ? (
-//                   <span className="flex items-center justify-center gap-2">
-//                     <svg
-//                       className="h-4 w-4 animate-spin text-white"
-//                       viewBox="0 0 24 24"
-//                     >
-//                       <circle
-//                         className="opacity-25"
-//                         cx="12"
-//                         cy="12"
-//                         r="10"
-//                         stroke="currentColor"
-//                         strokeWidth="4"
-//                         fill="none"
-//                       />
-//                       <path
-//                         className="opacity-75"
-//                         fill="currentColor"
-//                         d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.918l3-2.627z"
-//                       />
-//                     </svg>
-//                     Processing...
-//                   </span>
-//                 ) : (
-//                   "Confirm Booking"
-//                 )}
-//               </button>
-//             </form>
-//           </div>
-//         </div>
-//       )}
-//     </>
-//   );
-// }
-
 "use client";
 
 import { useEffect, useState } from "react";
@@ -463,16 +275,25 @@ export default function BookingCardForm({
     setLoading(true);
 
     try {
+      // JWT from Better Auth. The backend checks it with your JWKS.
+      const { data: tokenData, error: tokenError } = await authClient.token();
+      if (tokenError || !tokenData?.token) {
+        throw new Error("Your session expired. Please log in again.");
+      }
+
       const res = await fetch(`${API_URL}/bookings`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${tokenData.token}`,
+        },
         body: JSON.stringify({
           carId,
           startDate: range.start,
           endDate: range.end,
           driverNeeded: formData.driverNeeded,
           specialNote: formData.specialNote,
-          userId: user.id,
+          // userId is not sent. The server reads it from the token.
           userName: user.name || "",
           userEmail: user.email || "",
           userImage: user.image || "",
@@ -481,6 +302,9 @@ export default function BookingCardForm({
 
       const data = await res.json().catch(() => ({}));
 
+      if (res.status === 401) {
+        throw new Error("Your session expired. Please log in again.");
+      }
       if (res.status === 409) {
         // someone booked those days first: reload the blocked dates
         toast.error(data.message || "Those dates are already booked.");

@@ -9,19 +9,31 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
 export default function CarsList({ cars }) {
   const { data: session } = authClient.useSession();
+
   const userId = session?.user?.id;
 
-  // "today" is read after mount, so server and browser HTML always match
   const [today, setToday] = useState("");
-  const [mine, setMine] = useState({ userId: null, carIds: [] });
 
+  const [mine, setMine] = useState({
+    userId: null,
+    carIds: [],
+  });
+
+  // Read today's date after mounting
   useEffect(() => {
     setToday(todayKey());
   }, []);
 
-  // cars this user has booked (not finished yet)
+  // Find cars booked by the logged-in user
   useEffect(() => {
-    if (!userId) return;
+    if (!userId) {
+      setMine({
+        userId: null,
+        carIds: [],
+      });
+
+      return;
+    }
 
     const controller = new AbortController();
 
@@ -30,34 +42,43 @@ export default function CarsList({ cars }) {
       signal: controller.signal,
     })
       .then((res) => {
-        if (!res.ok) throw new Error("Bad response");
+        if (!res.ok) {
+          throw new Error("Failed to fetch bookings");
+        }
+
         return res.json();
       })
       .then((list) => {
         const now = todayKey();
+
         setMine({
           userId,
-          carIds: list.filter((b) => b.endDate >= now).map((b) => b.carId),
+          carIds: list
+            .filter((booking) => booking.endDate >= now)
+            .map((booking) => booking.carId),
         });
       })
-      .catch(() => {
-        // no tick if this fails. The cars still show.
+      .catch((error) => {
+        if (error.name !== "AbortError") {
+          console.error("Booking fetch error:", error);
+        }
       });
 
     return () => controller.abort();
   }, [userId]);
 
-  // tagged with the user id, so another account never sees the previous user's ticks
+  // Prevent previous account's data from appearing
   const mySet = new Set(mine.userId === userId ? mine.carIds : []);
 
   return (
     <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
       {cars.map((car, i) => {
         const bookedByMe = mySet.has(String(car._id));
+
         const bookedNow =
           Boolean(today) &&
           (car.bookedRanges || []).some(
-            (r) => r.startDate <= today && today <= r.endDate,
+            (range) => range.startDate <= today && today <= range.endDate,
           );
 
         return (

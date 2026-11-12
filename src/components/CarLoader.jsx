@@ -2,11 +2,6 @@ import { Barlow } from "next/font/google";
 
 const barlow = Barlow({ subsets: ["latin"], weight: ["500", "600"] });
 
-/*
-  Car drives in place, road scrolls under it.
-  className sets the height. Default = full page under the navbar.
-  Inline use: <CarLoader className="min-h-[40vh]" />
-*/
 export default function CarLoader({
   label = "Loading",
   className = "min-h-[calc(100vh-64px)]",

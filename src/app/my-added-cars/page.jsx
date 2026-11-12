@@ -56,20 +56,50 @@ export default function MyAddedCarsPage() {
 
     const controller = new AbortController();
 
-    fetch(`${API_URL}/my-cars?ownerId=${encodeURIComponent(userId)}`, {
-      cache: "no-store",
-      signal: controller.signal,
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error("Bad response");
-        return res.json();
-      })
-      .then((cars) => setResult({ ownerId: userId, cars, error: false }))
-      .catch((err) => {
-        if (err.name !== "AbortError") {
-          setResult({ ownerId: userId, cars: [], error: true });
+    async function fetchMyCars() {
+      try {
+        // Get JWT from Better Auth
+        const { data, error } = await authClient.token();
+
+        if (error || !data?.token) {
+          throw new Error("Failed to obtain authentication token");
         }
-      });
+
+        // Send JWT to Express backend
+        const res = await fetch(`${API_URL}/my-cars`, {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${data.token}`,
+          },
+          cache: "no-store",
+          signal: controller.signal,
+        });
+
+        if (!res.ok) {
+          throw new Error("Failed to fetch your cars");
+        }
+
+        const cars = await res.json();
+
+        setResult({
+          ownerId: userId,
+          cars,
+          error: false,
+        });
+      } catch (err) {
+        if (err.name !== "AbortError") {
+          console.error("My Added Cars error:", err);
+
+          setResult({
+            ownerId: userId,
+            cars: [],
+            error: true,
+          });
+        }
+      }
+    }
+
+    fetchMyCars();
 
     return () => controller.abort();
   }, [userId]);
