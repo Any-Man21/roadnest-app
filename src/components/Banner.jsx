@@ -51,29 +51,16 @@ export default function UltraLuxuryBanner() {
 
       {/* --- MOBILE CAR ANIMATION --- */}
       <div className="mobile-car-track">
-        <motion.div
-          className="mobile-car-wrapper"
-          animate={{ x: ["110vw", "-20vw"] }}
-          transition={{
-            duration: 6,
-            repeat: Infinity,
-            ease: "linear",
-            repeatDelay: 2,
-          }}
-        >
+        <div className="mobile-car-wrapper">
           <div className="mobile-car-emoji">🏎️</div>
           <div className="car-smoke" />
-        </motion.div>
+        </div>
       </div>
 
       {/* --- CONTENT LAYER --- */}
       <div className="content-layer mt-10">
         <div className="inner-wrap">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-          >
+          <div className="hero-in">
             <p className="eyebrow">THE GOLD STANDARD OF RENTALS</p>
             <h1 className="title">
               Your Next Ride <br />
@@ -83,7 +70,7 @@ export default function UltraLuxuryBanner() {
               Curated performance. Unmatched luxury. <br className="hide-mob" />
               Experience the road like never before.
             </p>
-          </motion.div>
+          </div>
 
           <div className="cta-group">
             <Link href="/cars" className="btn-main">
@@ -178,20 +165,13 @@ export default function UltraLuxuryBanner() {
           <div className="features-section">
             <div className="features-grid">
               {FEATURES.map((f, i) => (
-                <motion.div
-                  key={i}
-                  className="feature-card"
-                  whileHover={{
-                    y: -5,
-                    backgroundColor: "rgba(255,255,255,0.1)",
-                  }}
-                >
+                <div key={i} className="feature-card">
                   <span className="f-icon">{f.icon}</span>
                   <div className="f-info">
                     <strong>{f.title}</strong>
                     <span>{f.text}</span>
                   </div>
-                </motion.div>
+                </div>
               ))}
             </div>
             <div className={`signature ${caveat.className}`}>
@@ -356,6 +336,7 @@ export default function UltraLuxuryBanner() {
         .mobile-car-wrapper {
           position: relative;
           width: 80px;
+          animation: carDrive 8s linear infinite;
         }
         .mobile-car-emoji {
           font-size: 3.5rem;
@@ -385,6 +366,9 @@ export default function UltraLuxuryBanner() {
         .inner-wrap {
           max-width: 1100px;
           margin: 0 auto;
+        }
+        .hero-in {
+          animation: heroIn 0.8s cubic-bezier(0.2, 0.7, 0.2, 1) both;
         }
         .eyebrow {
           font-size: 0.8rem;
@@ -566,6 +550,10 @@ export default function UltraLuxuryBanner() {
           border-radius: 15px;
           transition: 0.3s;
         }
+        .feature-card:hover {
+          transform: translateY(-5px);
+          background-color: rgba(255, 255, 255, 0.1);
+        }
         .f-icon {
           font-size: 1.3rem;
           background: rgba(58, 160, 255, 0.1);
@@ -724,6 +712,26 @@ export default function UltraLuxuryBanner() {
           to {
             opacity: 0.5;
             transform: scale(1.5);
+          }
+        }
+        @keyframes heroIn {
+          from {
+            opacity: 0;
+            transform: translateY(30px);
+          }
+          to {
+            opacity: 1;
+            transform: none;
+          }
+        }
+        /* drives right to left in 6s, then waits 2s off screen */
+        @keyframes carDrive {
+          0% {
+            transform: translateX(110vw);
+          }
+          75%,
+          100% {
+            transform: translateX(-20vw);
           }
         }
 
