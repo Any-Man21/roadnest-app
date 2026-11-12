@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { authClient } from "@/lib/auth-client";
 import toast from "react-hot-toast";
 import {
   deliveryWindow,
@@ -146,23 +147,39 @@ export default function Order({ order, ownerId, index = 0, onDelivered }) {
 
   async function handleDeliver() {
     if (busy) return;
+
     setBusy(true);
+
     try {
+      // Get JWT from Better Auth
+      const { data, error } = await authClient.token();
+
+      if (error || !data?.token) {
+        throw new Error("Authentication failed. Please log in again.");
+      }
+
+      // Send authenticated request
       const res = await fetch(`${API_URL}/orders/${_id}/deliver`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ownerId }),
+        headers: {
+          Authorization: `Bearer ${data.token}`,
+          "Content-Type": "application/json",
+        },
       });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok)
-        throw new Error(data.message || "Couldn’t update the order.");
+
+      const dataResponse = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        throw new Error(dataResponse.message || "Couldn't update the order.");
+      }
 
       toast.success("Marked as delivered. The renter can now confirm.");
-      onDelivered?.(_id, data.deliveredAt);
+
+      onDelivered?.(_id, dataResponse.deliveredAt);
     } catch (err) {
       toast.error(
         err instanceof TypeError
-          ? "Can’t reach the server. Check that your backend is running."
+          ? "Can't reach the server. Check that your backend is running."
           : err.message,
       );
     } finally {

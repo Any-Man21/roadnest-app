@@ -44,20 +44,50 @@ export default function OrdersPage() {
 
     const controller = new AbortController();
 
-    fetch(`${API_URL}/orders?ownerId=${encodeURIComponent(userId)}`, {
-      cache: "no-store",
-      signal: controller.signal,
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error("Bad response");
-        return res.json();
-      })
-      .then((orders) => setResult({ ownerId: userId, orders, error: false }))
-      .catch((err) => {
-        if (err.name !== "AbortError") {
-          setResult({ ownerId: userId, orders: [], error: true });
+    async function fetchOrders() {
+      try {
+        // Get JWT from Better Auth
+        const { data, error } = await authClient.token();
+
+        if (error || !data?.token) {
+          throw new Error("Failed to obtain authentication token");
         }
-      });
+
+        // Send JWT to Express backend
+        const res = await fetch(`${API_URL}/orders`, {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${data.token}`,
+          },
+          cache: "no-store",
+          signal: controller.signal,
+        });
+
+        if (!res.ok) {
+          throw new Error("Failed to fetch your orders");
+        }
+
+        const orders = await res.json();
+
+        setResult({
+          ownerId: userId,
+          orders,
+          error: false,
+        });
+      } catch (err) {
+        if (err.name !== "AbortError") {
+          console.error("Orders fetch error:", err);
+
+          setResult({
+            ownerId: userId,
+            orders: [],
+            error: true,
+          });
+        }
+      }
+    }
+
+    fetchOrders();
 
     return () => controller.abort();
   }, [userId]);
@@ -134,7 +164,6 @@ export default function OrdersPage() {
           <Order
             key={order._id}
             order={order}
-            ownerId={userId}
             index={i}
             onDelivered={handleDelivered}
           />
