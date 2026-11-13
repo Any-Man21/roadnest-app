@@ -10,7 +10,7 @@ const barlow = Barlow({
   weight: ["400", "500", "600", "700"],
 });
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 export const metadata = {
   title: "Explore Cars | RoadNest",

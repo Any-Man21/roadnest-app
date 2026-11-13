@@ -5,7 +5,7 @@ import { authClient } from "@/lib/auth-client";
 import { todayKey } from "@/lib/date";
 import CarCard from "./CarCard";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 export default function CarsList({ cars }) {
   const { data: session } = authClient.useSession();

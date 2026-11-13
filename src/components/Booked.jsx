@@ -13,7 +13,7 @@ import {
   todayKey,
 } from "@/lib/date";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 const CANCEL_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 // JWT from Better Auth. The backend checks it with your JWKS.

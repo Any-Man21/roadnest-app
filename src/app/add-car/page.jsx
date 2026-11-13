@@ -22,7 +22,7 @@ const barlow = Barlow({
   weight: ["400", "500", "600", "700"],
 });
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 const CAR_TYPES = [
   "Sedan",
@@ -85,7 +85,7 @@ export default function AddCarPage() {
 
     try {
       const { data: tokenData } = await authClient.token();
-      const res = await fetch("http://localhost:5000/cars", {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/cars`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

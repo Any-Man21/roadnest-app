@@ -17,7 +17,7 @@ import {
 import { CiEdit } from "react-icons/ci";
 import { authClient } from "@/lib/auth-client";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 const CAR_TYPES = [
   "Sedan",

@@ -4,7 +4,7 @@ import CarDetailView from "@/components/CarDetailView";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 async function getCar(id) {
   try {
