@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Barlow } from "next/font/google";
+import { Toaster } from "react-hot-toast";
 import { authClient } from "@/lib/auth-client";
 import { EditCarDetails } from "@/components/EditCarDetails";
 import { DeleteCar } from "@/components/DeleteCar";
@@ -45,6 +46,8 @@ export default function MyAddedCarsPage() {
   const { data: session, isPending } = authClient.useSession();
   const userId = session?.user?.id;
 
+  // Result is tagged with the user it belongs to, so one user's cars
+  // can never flash on screen for another user.
   const [result, setResult] = useState({
     ownerId: null,
     cars: [],
@@ -58,43 +61,26 @@ export default function MyAddedCarsPage() {
 
     async function fetchMyCars() {
       try {
-        // Get JWT from Better Auth
+        // JWT from Better Auth. The backend checks it with your JWKS.
         const { data, error } = await authClient.token();
-
         if (error || !data?.token) {
           throw new Error("Failed to obtain authentication token");
         }
 
-        // Send JWT to Express backend
         const res = await fetch(`${API_URL}/my-cars`, {
           method: "GET",
-          headers: {
-            Authorization: `Bearer ${data.token}`,
-          },
+          headers: { Authorization: `Bearer ${data.token}` },
           cache: "no-store",
           signal: controller.signal,
         });
-
-        if (!res.ok) {
-          throw new Error("Failed to fetch your cars");
-        }
+        if (!res.ok) throw new Error("Failed to fetch your cars");
 
         const cars = await res.json();
-
-        setResult({
-          ownerId: userId,
-          cars,
-          error: false,
-        });
+        setResult({ ownerId: userId, cars, error: false });
       } catch (err) {
         if (err.name !== "AbortError") {
           console.error("My Added Cars error:", err);
-
-          setResult({
-            ownerId: userId,
-            cars: [],
-            error: true,
-          });
+          setResult({ ownerId: userId, cars: [], error: true });
         }
       }
     }
@@ -103,6 +89,20 @@ export default function MyAddedCarsPage() {
 
     return () => controller.abort();
   }, [userId]);
+
+  // car edited: show the new values on its row
+  const handleUpdated = (id, changes) =>
+    setResult((r) => ({
+      ...r,
+      cars: r.cars.map((c) => (c._id === id ? { ...c, ...changes } : c)),
+    }));
+
+  // car deleted: remove its row
+  const handleDeleted = (id) =>
+    setResult((r) => ({
+      ...r,
+      cars: r.cars.filter((c) => c._id !== id),
+    }));
 
   const waiting = isPending || (userId && result.ownerId !== userId);
   const showList =
@@ -135,98 +135,127 @@ export default function MyAddedCarsPage() {
     content = (
       <div className="grid grid-cols-1 gap-5">
         {result.cars.map((car, i) => (
-          <ListingRow key={car._id} car={car} index={i} />
+          <ListingRow
+            key={car._id}
+            car={car}
+            index={i}
+            onUpdated={handleUpdated}
+            onDeleted={handleDeleted}
+          />
         ))}
       </div>
     );
   }
 
   return (
-    <main
-      className={`${barlow.className} relative isolate min-h-[calc(100vh-64px)] overflow-hidden bg-[#060b14] px-4 py-10 text-white sm:px-6 sm:py-14`}
-    >
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute -top-40 left-1/2 -z-10 h-[420px] w-[720px] max-w-[140vw] -translate-x-1/2 rounded-full bg-blue-500/20 blur-[120px]"
+    <>
+      {/* Outside <main> so the navbar can't cover it. Centered pop-up. */}
+      <Toaster
+        position="top-center"
+        containerStyle={{ top: "42%" }}
+        toastOptions={{
+          style: {
+            background: "#0a1424",
+            color: "#fff",
+            border: "1px solid rgba(255,255,255,0.1)",
+            padding: "16px 24px",
+            fontSize: "1rem",
+            borderRadius: "14px",
+            boxShadow: "0 20px 50px rgba(0,0,0,0.5)",
+          },
+        }}
       />
 
-      <div className="mx-auto w-full max-w-5xl">
-        <header className="flex flex-col gap-4 transition-all duration-700 ease-out starting:translate-y-4 starting:opacity-0 motion-reduce:transition-none sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <h1 className="text-3xl font-bold leading-tight tracking-tight sm:text-4xl lg:text-5xl">
-              My Added{" "}
-              <span className="bg-gradient-to-r from-sky-400 to-blue-500 bg-clip-text text-transparent">
-                Cars
-              </span>
-            </h1>
+      <main
+        className={`${barlow.className} relative isolate min-h-[calc(100vh-64px)] overflow-hidden bg-[#060b14] px-4 py-10 text-white sm:px-6 sm:py-14`}
+      >
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -top-40 left-1/2 -z-10 h-[420px] w-[720px] max-w-[140vw] -translate-x-1/2 rounded-full bg-blue-500/20 blur-[120px]"
+        />
+
+        <div className="mx-auto w-full max-w-5xl">
+          <header className="flex flex-col gap-4 transition-all duration-700 ease-out starting:translate-y-4 starting:opacity-0 motion-reduce:transition-none sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h1 className="text-3xl font-bold leading-tight tracking-tight sm:text-4xl lg:text-5xl">
+                My Added{" "}
+                <span className="bg-gradient-to-r from-sky-400 to-blue-500 bg-clip-text text-transparent">
+                  Cars
+                </span>
+              </h1>
+              {showList && (
+                <p className="mt-3 text-sm text-slate-400 sm:text-base">
+                  {result.cars.length}{" "}
+                  {result.cars.length === 1 ? "car" : "cars"} listed under your
+                  account.
+                </p>
+              )}
+            </div>
+
             {showList && (
-              <p className="mt-3 text-sm text-slate-400 sm:text-base">
-                {result.cars.length} {result.cars.length === 1 ? "car" : "cars"}{" "}
-                listed under your account.
-              </p>
+              <Link
+                href="/add-car"
+                className={`${buttonClass} w-full sm:w-auto`}
+              >
+                + Add Car
+              </Link>
             )}
-          </div>
+          </header>
 
-          {showList && (
-            <Link href="/add-car" className={`${buttonClass} w-full sm:w-auto`}>
-              + Add Car
-            </Link>
-          )}
-        </header>
+          <section className="mt-8 sm:mt-10">{content}</section>
+        </div>
 
-        <section className="mt-8 sm:mt-10">{content}</section>
-      </div>
-
-      <style jsx global>{`
-        .ma-car {
-          left: -30%;
-          animation: ma-drive 9s linear infinite;
-        }
-        .ma-wheel {
-          transform-box: fill-box;
-          transform-origin: center;
-          animation: ma-spin 0.5s linear infinite;
-        }
-        .ma-dashes {
-          background-image: linear-gradient(
-            90deg,
-            rgba(255, 255, 255, 0.6) 0 36px,
-            transparent 36px
-          );
-          background-size: 72px 100%;
-          animation: ma-road 1s linear infinite;
-        }
-        @keyframes ma-drive {
-          to {
-            left: 110%;
-          }
-        }
-        @keyframes ma-spin {
-          to {
-            transform: rotate(360deg);
-          }
-        }
-        @keyframes ma-road {
-          to {
-            background-position-x: -72px;
-          }
-        }
-        @media (prefers-reduced-motion: reduce) {
+        <style jsx global>{`
           .ma-car {
-            animation: none;
-            left: 40%;
+            left: -30%;
+            animation: ma-drive 9s linear infinite;
           }
-          .ma-wheel,
+          .ma-wheel {
+            transform-box: fill-box;
+            transform-origin: center;
+            animation: ma-spin 0.5s linear infinite;
+          }
           .ma-dashes {
-            animation: none;
+            background-image: linear-gradient(
+              90deg,
+              rgba(255, 255, 255, 0.6) 0 36px,
+              transparent 36px
+            );
+            background-size: 72px 100%;
+            animation: ma-road 1s linear infinite;
           }
-        }
-      `}</style>
-    </main>
+          @keyframes ma-drive {
+            to {
+              left: 110%;
+            }
+          }
+          @keyframes ma-spin {
+            to {
+              transform: rotate(360deg);
+            }
+          }
+          @keyframes ma-road {
+            to {
+              background-position-x: -72px;
+            }
+          }
+          @media (prefers-reduced-motion: reduce) {
+            .ma-car {
+              animation: none;
+              left: 40%;
+            }
+            .ma-wheel,
+            .ma-dashes {
+              animation: none;
+            }
+          }
+        `}</style>
+      </main>
+    </>
   );
 }
 
-function ListingRow({ car, index }) {
+function ListingRow({ car, index, onUpdated, onDeleted }) {
   const {
     _id,
     name,
@@ -256,6 +285,7 @@ function ListingRow({ car, index }) {
           className="group relative block aspect-[16/10] w-full shrink-0 overflow-hidden bg-gradient-to-br from-[#122036] to-[#0a1424] sm:aspect-auto sm:min-h-44 sm:w-60 lg:w-72"
         >
           {imageUrl && !imgFailed ? (
+            // eslint-disable-next-line @next/next/no-img-element
             <img
               src={imageUrl}
               alt={name}
@@ -325,8 +355,11 @@ function ListingRow({ car, index }) {
             </p>
 
             <div className="flex gap-2">
-              <EditCarDetails car={car} />
-              <DeleteCar car={car} />
+              <EditCarDetails
+                car={car}
+                onUpdated={(changes) => onUpdated(_id, changes)}
+              />
+              <DeleteCar car={car} onDeleted={() => onDeleted(_id)} />
             </div>
           </div>
         </div>

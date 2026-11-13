@@ -8,20 +8,36 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
 async function getCar(id) {
   try {
-    const tokenResponse = await auth.api.getToken({
-      headers: await headers(),
-    });
-    const token = tokenResponse?.token;
-    // console.log(token);
+    let token = null;
+
+    // JWT retrieval, but allows guests
+    try {
+      const tokenResponse = await auth.api.getToken({
+        headers: await headers(),
+      });
+
+      token = tokenResponse?.token;
+    } catch {
+      console.log("Guest accessing car details.");
+    }
+
+    // Add JWT only when available
+    const requestHeaders = {};
+
+    if (token) {
+      requestHeaders["authorization"] = `Bearer ${token}`;
+    }
+
     const res = await fetch(`${API_URL}/cars/${id}`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+      headers: requestHeaders,
       cache: "no-store",
     });
+
     if (!res.ok) return null;
+
     return await res.json();
-  } catch {
+  } catch (error) {
+    console.error("Failed to load car:", error);
     return null;
   }
 }

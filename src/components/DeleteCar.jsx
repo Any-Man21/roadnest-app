@@ -1,26 +1,56 @@
 "use client";
 
 import { AlertDialog, Button } from "@heroui/react";
-import { Car } from "lucide-react";
-import { redirect } from "next/navigation";
+import { useRouter } from "next/navigation";
+import toast from "react-hot-toast";
+import { authClient } from "@/lib/auth-client";
 
-export function DeleteCar({ car }) {
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+
+export function DeleteCar({ car, onDeleted }) {
+  const router = useRouter();
   const { name } = car;
 
-  //   delete logic
+  // delete logic
   const handleDelete = async () => {
-    const res = await fetch(`http://localhost:5000/cars/${car._id}`, {
-      method: "DELETE",
-      headers: {
-        "content-type": "application/json",
-      },
-    });
-    const data = await res.json();
-    redirect("/cars");
+    try {
+      // JWT from Better Auth. The backend checks it with your JWKS.
+      const { data: tokenData, error: tokenError } = await authClient.token();
+      if (tokenError || !tokenData?.token) {
+        throw new Error("Your session expired. Please log in again.");
+      }
+
+      const res = await fetch(`${API_URL}/cars/${car._id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${tokenData.token}` },
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (res.status === 401) {
+        throw new Error("Your session expired. Please log in again.");
+      }
+      // 403 = not the owner. The server message says so.
+      if (!res.ok) {
+        throw new Error(data.message || "Couldn’t delete the car.");
+      }
+
+      toast.success(`${name} deleted.`);
+
+      if (onDeleted) onDeleted();
+      else router.push("/cars");
+    } catch (err) {
+      toast.error(
+        err instanceof TypeError
+          ? "Can’t reach the server. Check that your backend is running."
+          : err.message,
+      );
+    }
   };
+
   return (
     <AlertDialog>
-      <Button variant="outline" className={"text-red-300"}>
+      <Button variant="outline" className="text-red-300">
         Delete
       </Button>
       <AlertDialog.Backdrop>
@@ -43,7 +73,7 @@ export function DeleteCar({ car }) {
               <Button slot="close" variant="tertiary">
                 Cancel
               </Button>
-              <Button slot="close" variant="danger" onClick={handleDelete}>
+              <Button slot="close" variant="danger" onPress={handleDelete}>
                 Terminate
               </Button>
             </AlertDialog.Footer>
