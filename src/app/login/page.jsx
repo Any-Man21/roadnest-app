@@ -53,15 +53,22 @@ export default function LoginPage() {
     }
 
     toast.success("Logged in successfully!");
-    setTimeout(() => router.push("/"), 1200);
+    setTimeout(() => {
+      window.location.replace("/");
+    }, 1000);
   }
 
   // Continue with Google
   async function handleGoogle() {
-    // TODO: Google sign-in logic here
-    await authClient.signIn.social({
+    const { error } = await authClient.signIn.social({
       provider: "google",
+      callbackURL: "/",
+      newUserCallbackURL: "/",
     });
+
+    if (error) {
+      toast.error(error.message || "Google login failed.");
+    }
   }
 
   return (

@@ -50,7 +50,9 @@ export default function RegisterPage() {
         toast.error(
           "An account with this email already exists. Please log in.",
         );
-        setTimeout(() => router.push("/login"), 1500);
+        setTimeout(() => {
+          window.location.replace("/login");
+        }, 1500);
       } else {
         toast.error(error.message || "Something went wrong. Please try again.");
       }
@@ -58,15 +60,22 @@ export default function RegisterPage() {
     }
 
     toast.success("Account created successfully!");
-    setTimeout(() => router.push("/"), 1200);
+    setTimeout(() => {
+      window.location.replace("/");
+    }, 1000);
   }
 
   // Continue with Google
   async function handleGoogle() {
-    // TODO:Google sign-in logic here
-    await authClient.signIn.social({
+    const { error } = await authClient.signIn.social({
       provider: "google",
+      callbackURL: "/",
+      newUserCallbackURL: "/",
     });
+
+    if (error) {
+      toast.error(error.message || "Google login failed.");
+    }
   }
 
   return (

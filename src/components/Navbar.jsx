@@ -183,13 +183,23 @@ function NavbarContent() {
     setConfirmOpen(true);
   }
 
+  // logout
+
   async function confirmLogout() {
     setLoggingOut(true);
+
     try {
       const { error } = await authClient.signOut();
-      if (error) return;
+
+      if (error) {
+        console.error("Logout failed:", error);
+        return;
+      }
+
       setConfirmOpen(false);
-      router.push("/");
+
+      // Hard redirect to login page
+      window.location.replace("/");
     } finally {
       setLoggingOut(false);
     }
