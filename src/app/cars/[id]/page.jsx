@@ -21,7 +21,6 @@ async function getCar(id) {
       console.log("Guest accessing car details.");
     }
 
-    // Add JWT only when available
     const requestHeaders = {};
 
     if (token) {
@@ -40,6 +39,45 @@ async function getCar(id) {
     console.error("Failed to load car:", error);
     return null;
   }
+}
+
+// Dynamic SEO metadata
+export async function generateMetadata({ params }) {
+  const { id } = await params;
+  const car = await getCar(id);
+
+  if (!car) {
+    return {
+      title: "Car Not Found | RoadNest",
+      description: "This vehicle could not be found on RoadNest.",
+    };
+  }
+
+  const name = car.name || "Car Rental";
+
+  return {
+    title: `${name} | RoadNest`,
+    description: `Explore the ${name} on RoadNest. Check its details, features, and daily rental price, and book your next ride.`,
+    openGraph: {
+      title: `${name} | RoadNest`,
+      description: `Discover the ${name} and book your next ride with RoadNest.`,
+      type: "website",
+      images: car.imageUrl
+        ? [
+            {
+              url: car.imageUrl,
+              alt: name,
+            },
+          ]
+        : [],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: `${name} | RoadNest`,
+      description: `Discover the ${name} and book your next ride with RoadNest.`,
+      images: car.imageUrl ? [car.imageUrl] : [],
+    },
+  };
 }
 
 /* The only part that waits for the URL param and the data */

@@ -1,6 +1,5 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Barlow, Caveat } from "next/font/google";
 
@@ -8,7 +7,13 @@ const barlow = Barlow({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
 });
-const caveat = Caveat({ subsets: ["latin"], weight: ["600"] });
+
+const caveat = Caveat({
+  subsets: ["latin"],
+  weight: ["600"],
+});
+
+const CURRENT_YEAR = "2026";
 
 const FOOTER_LINKS = {
   company: [
@@ -32,29 +37,21 @@ const FOOTER_LINKS = {
 };
 
 export default function Footer() {
-  // FIX: Initialize year as an empty string to prevent hydration mismatch
-  const [year, setYear] = useState("");
-
-  useEffect(() => {
-    // Set the year only after the component mounts on the client
-    setYear(new Date().getFullYear().toString());
-  }, []);
-
   return (
     <footer className={`rn-footer ${barlow.className}`}>
       <div className="footer-main">
         <div className="footer-grid">
-          {/* Brand Section */}
+          {/* Brand */}
           <div className="footer-brand">
             <Link href="/" className="footer-logo">
-              <span className="logo-text">
-                Road<span className="blue-accent">Nest</span>
-              </span>
+              Road<span className="blue-accent">Nest</span>
             </Link>
+
             <p className="brand-desc">
               Redefining the art of driving. We provide an elite collection of
               automotive masterpieces for those who demand the extraordinary.
             </p>
+
             <div className="social-links">
               <a href="#" className="social-icon">
                 Instagram
@@ -68,49 +65,30 @@ export default function Footer() {
             </div>
           </div>
 
-          {/* Links Sections */}
+          {/* Footer links */}
           <div className="footer-links-area">
-            <div className="link-column">
-              <h3>Company</h3>
-              <ul>
-                {FOOTER_LINKS.company.map((link) => (
-                  <li key={link.label}>
-                    <Link href={link.href}>{link.label}</Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <div className="link-column">
-              <h3>Services</h3>
-              <ul>
-                {FOOTER_LINKS.services.map((link) => (
-                  <li key={link.label}>
-                    <Link href={link.href}>{link.label}</Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <div className="link-column">
-              <h3>Support</h3>
-              <ul>
-                {FOOTER_LINKS.support.map((link) => (
-                  <li key={link.label}>
-                    <Link href={link.href}>{link.label}</Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
+            {Object.entries(FOOTER_LINKS).map(([title, links]) => (
+              <div className="link-column" key={title}>
+                <h3>{title.charAt(0).toUpperCase() + title.slice(1)}</h3>
+                <ul>
+                  {links.map((link) => (
+                    <li key={link.label}>
+                      <Link href={link.href}>{link.label}</Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
           </div>
         </div>
 
-        {/* Bottom Bar */}
+        {/* Copyright */}
         <div className="footer-bottom">
-          <div className="bottom-left">
-            <p>© {year} RoadNest Luxury Rentals. All rights reserved.</p>
-          </div>
-          <div className={`bottom-right ${caveat.className}`}>
+          <p className="copyright">
+            © {CURRENT_YEAR} RoadNest Luxury Rentals. All rights reserved.
+          </p>
+
+          <div className={`footer-slogan ${caveat.className}`}>
             Drive More, Worry Less.
           </div>
         </div>
@@ -118,158 +96,233 @@ export default function Footer() {
 
       <style jsx global>{`
         .rn-footer {
-          background: #05080f;
-          color: #ffffff;
-          padding: 80px 0 30px 0;
-          border-top: 1px solid rgba(120, 160, 220, 0.1);
+          display: block;
           position: relative;
+          width: 100%;
+          height: auto !important;
+          min-height: 0 !important;
+          flex: 0 0 auto !important;
+          margin: 0;
+          padding: 52px 0 24px;
+          background: #05080f;
+          color: #fff;
+          border-top: 1px solid rgba(120, 160, 220, 0.1);
+          box-sizing: border-box;
         }
-        .footer-main {
+
+        .rn-footer *,
+        .rn-footer *::before,
+        .rn-footer *::after {
+          box-sizing: border-box;
+        }
+
+        .rn-footer .footer-main {
+          width: 100%;
           max-width: 1280px;
           margin: 0 auto;
           padding: 0 24px;
         }
-        .footer-grid {
+
+        .rn-footer .footer-grid {
           display: grid;
-          grid-template-columns: 1.5fr 3fr;
+          grid-template-columns: minmax(0, 1.2fr) minmax(0, 2fr);
+          align-items: start;
           gap: 60px;
-          margin-bottom: 60px;
+          margin-bottom: 40px;
         }
 
-        /* Brand Section */
-        .footer-brand {
+        .rn-footer .footer-brand {
           display: flex;
           flex-direction: column;
-          gap: 20px;
-        }
-        .footer-logo {
-          text-decoration: none;
-          font-size: 2rem;
-          font-weight: 800;
-          color: white;
-        }
-        .logo-text .blue-accent {
-          color: #3aa0ff;
-        }
-        .brand-desc {
-          color: #9aa7ba;
-          font-size: 0.95rem;
-          line-height: 1.6;
-          max-width: 320px;
-        }
-        .social-links {
-          display: flex;
-          gap: 15px;
-          margin-top: 10px;
-        }
-        .social-icon {
-          color: #9aa7ba;
-          text-decoration: none;
-          font-size: 0.85rem;
-          font-weight: 500;
-          transition: 0.3s;
-          padding: 5px 0;
-          border-bottom: 1px solid transparent;
-        }
-        .social-icon:hover {
-          color: #3aa0ff;
-          border-bottom: 1px solid #3aa0ff;
+          align-items: flex-start;
+          gap: 16px;
+          min-width: 0;
         }
 
-        /* Links Area */
-        .footer-links-area {
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          gap: 30px;
-        }
-        .link-column h3 {
-          font-size: 1.1rem;
+        .rn-footer .footer-logo {
+          color: #fff;
+          font-size: 2rem;
           font-weight: 700;
-          margin-bottom: 24px;
-          color: white;
+          line-height: 1.2;
+          text-decoration: none;
+        }
+
+        .rn-footer .blue-accent {
+          color: #3aa0ff;
+        }
+
+        .rn-footer .brand-desc {
+          max-width: 320px;
+          margin: 0;
+          color: #9aa7ba;
+          font-size: 0.95rem;
+          line-height: 1.7;
+        }
+
+        .rn-footer .social-links {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 18px;
+          margin-top: 4px;
+        }
+
+        .rn-footer .social-icon {
+          padding: 4px 0;
+          color: #9aa7ba;
+          font-size: 0.85rem;
+          font-weight: 500;
+          text-decoration: none;
+          border-bottom: 1px solid transparent;
+          transition: 0.25s ease;
+        }
+
+        .rn-footer .social-icon:hover {
+          color: #3aa0ff;
+          border-color: #3aa0ff;
+        }
+
+        .rn-footer .footer-links-area {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 30px;
+          min-width: 0;
+        }
+
+        .rn-footer .link-column h3 {
           position: relative;
           display: inline-block;
+          margin: 0 0 22px;
+          color: #fff;
+          font-size: 1.05rem;
+          font-weight: 700;
+          text-transform: capitalize;
         }
-        .link-column h3::after {
+
+        .rn-footer .link-column h3::after {
           content: "";
           position: absolute;
+          bottom: -6px;
           left: 0;
-          bottom: -5px;
           width: 20px;
           height: 2px;
           background: #3aa0ff;
         }
-        .link-column ul {
-          list-style: none;
+
+        .rn-footer .link-column ul {
+          display: flex;
+          flex-direction: column;
+          gap: 13px;
           padding: 0;
           margin: 0;
-        }
-        .link-column li {
-          margin-bottom: 12px;
-        }
-        .link-column a {
-          color: #9aa7ba;
-          text-decoration: none;
-          font-size: 0.9rem;
-          transition: 0.3s;
-          display: inline-block;
-        }
-        .link-column a:hover {
-          color: white;
-          transform: translateX(5px);
+          list-style: none;
         }
 
-        /* Bottom Bar */
-        .footer-bottom {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding-top: 30px;
-          border-top: 1px solid rgba(255, 255, 255, 0.05);
+        .rn-footer .link-column li {
+          margin: 0;
         }
-        .bottom-left p {
+
+        .rn-footer .link-column a {
+          display: inline-block;
+          color: #9aa7ba;
+          font-size: 0.9rem;
+          line-height: 1.5;
+          text-decoration: none;
+          transition: 0.25s ease;
+        }
+
+        .rn-footer .link-column a:hover {
+          color: #fff;
+          transform: translateX(4px);
+        }
+
+        .rn-footer .footer-bottom {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 20px;
+          padding-top: 22px;
+          border-top: 1px solid rgba(255, 255, 255, 0.07);
+        }
+
+        .rn-footer .copyright {
+          margin: 0;
           color: #6c7a89;
           font-size: 0.8rem;
-        }
-        .bottom-right {
-          font-size: 1.6rem;
-          color: #3aa0ff;
-          line-height: 1;
-          text-align: right;
+          line-height: 1.6;
         }
 
-        /* RESPONSIVE */
+        .rn-footer .footer-slogan {
+          color: #3aa0ff;
+          font-size: 1.7rem;
+          line-height: 1.2;
+          text-align: right;
+          white-space: nowrap;
+        }
+
         @media (max-width: 900px) {
-          .footer-grid {
+          .rn-footer {
+            padding: 42px 0 22px;
+          }
+
+          .rn-footer .footer-grid {
             grid-template-columns: 1fr;
-            gap: 40px;
+            gap: 34px;
+            margin-bottom: 34px;
+          }
+
+          .rn-footer .footer-brand {
+            align-items: center;
             text-align: center;
           }
-          .footer-brand {
-            align-items: center;
+
+          .rn-footer .brand-desc {
+            max-width: 420px;
           }
-          .brand-desc {
-            max-width: 100%;
-          }
-          .social-links {
+
+          .rn-footer .social-links {
             justify-content: center;
           }
-          .footer-links-area {
-            grid-template-columns: 1fr;
-            gap: 40px;
+
+          .rn-footer .footer-links-area {
+            gap: 20px;
           }
-          .link-column h3::after {
+
+          .rn-footer .link-column {
+            text-align: center;
+          }
+
+          .rn-footer .link-column h3::after {
             left: 50%;
             transform: translateX(-50%);
           }
-          .link-column ul {
-            display: flex;
-            flex-direction: column;
+
+          .rn-footer .link-column ul {
             align-items: center;
           }
-          .footer-bottom {
+        }
+
+        @media (max-width: 560px) {
+          .rn-footer .footer-main {
+            padding: 0 18px;
+          }
+
+          .rn-footer .footer-links-area {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            row-gap: 28px;
+          }
+
+          .rn-footer .link-column:last-child {
+            grid-column: 1 / -1;
+          }
+
+          .rn-footer .footer-bottom {
             flex-direction: column;
-            gap: 20px;
+            gap: 12px;
+            text-align: center;
+          }
+
+          .rn-footer .footer-slogan {
+            font-size: 1.6rem;
             text-align: center;
           }
         }

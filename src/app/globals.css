@@ -1,2 +1,126 @@
+
 @import "tailwindcss";
-@import "@heroui/styles"; 
+@import "@heroui/styles";
+
+/* =====================================
+   GLOBAL RESET
+===================================== */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  min-height: 100%;
+  margin: 0;
+  padding: 0;
+  background: #05080f;
+  color-scheme: dark;
+}
+
+html {
+  min-height: 100%;
+}
+
+body {
+  min-height: 100vh;
+  min-height: 100dvh;
+  overflow-x: clip;
+}
+
+/* =====================================
+   ROOT PAGE STRUCTURE
+===================================== */
+
+.site-shell {
+  display: flex;
+  flex-direction: column;
+
+  width: 100%;
+  min-height: 100vh;
+  min-height: 100dvh;
+
+  margin: 0;
+  padding: 0;
+}
+
+/* Navbar always keeps its natural height */
+.site-shell > .rn-header {
+  flex: 0 0 auto;
+  width: 100%;
+}
+
+/* Main content takes the available space */
+.site-shell > .site-content {
+  display: flex;
+  flex: 1 0 auto;
+  flex-direction: column;
+
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+
+  margin: 0;
+  padding: 0;
+}
+
+/* =====================================
+   PAGE HEIGHT FIX
+===================================== */
+
+/*
+  Individual pages previously used:
+  min-h-screen
+  min-h-[calc(100vh-64px)]
+
+  Override those minimum heights.
+  The global shell now manages page height.
+*/
+
+.site-content > main {
+  display: flex;
+  flex: 1 0 auto;
+  flex-direction: column;
+
+  width: 100%;
+  min-width: 0;
+
+  min-height: 0 !important;
+
+  margin: 0;
+}
+
+/* =====================================
+   FOOTER
+===================================== */
+
+.site-shell > .rn-footer {
+  display: block;
+  flex: 0 0 auto;
+
+  width: 100%;
+  height: auto;
+  min-height: 0;
+
+  margin: 0;
+}
+
+/* =====================================
+   RESPONSIVE SAFETY
+===================================== */
+
+img,
+video,
+svg {
+  max-width: 100%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}

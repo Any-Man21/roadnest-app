@@ -1,9 +1,8 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
 import { Barlow, Caveat } from "next/font/google";
 
 const barlow = Barlow({
@@ -16,7 +15,10 @@ const caveat = Caveat({
   weight: ["600"],
 });
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+
+const BG =
+  "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop";
 
 const CATEGORIES = [
   "Luxury",
@@ -35,46 +37,111 @@ const FEATURES = [
   { icon: "🕒", title: "Instant", text: "Ready in minutes" },
 ];
 
+/* Defined outside Banner, so it is not rebuilt on every keystroke */
+function SuggestionList({ loading, cars, onSelect, onViewAll }) {
+  const empty = !loading && cars.length === 0;
+
+  return (
+    <div
+      className="suggestion-panel"
+      style={{ opacity: loading && cars.length ? 0.6 : 1 }}
+    >
+      {loading && cars.length === 0 ? (
+        <div className="suggestion-message">
+          <span className="loader" />
+          Searching the fleet...
+        </div>
+      ) : empty ? (
+        <div className="suggestion-message empty-message">
+          <span>🔎</span>
+          <strong>No matching vehicles</strong>
+          <small>Try another name or category.</small>
+        </div>
+      ) : (
+        <>
+          <div className="suggestion-heading">
+            MATCHING VEHICLES
+            <span>{cars.length} found</span>
+          </div>
+
+          {cars.map((car) => (
+            <button
+              key={car._id}
+              type="button"
+              className="suggestion-item"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => onSelect(car)}
+            >
+              <div className="suggestion-image">
+                {car.imageUrl ? (
+                  <img
+                    src={car.imageUrl}
+                    alt=""
+                    loading="lazy"
+                    decoding="async"
+                  />
+                ) : (
+                  <span className="suggestion-fallback">🚘</span>
+                )}
+              </div>
+
+              <div className="suggestion-info">
+                <strong>{car.name}</strong>
+                <span>
+                  {car.type || "Vehicle"}
+                  {car.location ? ` • ${car.location}` : ""}
+                </span>
+              </div>
+
+              <div className="suggestion-price">
+                <strong>
+                  ${Number(car.pricePerDay || 0).toLocaleString("en-US")}
+                </strong>
+                <span>/ day</span>
+              </div>
+
+              <span className="suggestion-arrow">↗</span>
+            </button>
+          ))}
+
+          <button type="button" className="view-all" onClick={onViewAll}>
+            View all matching vehicles →
+          </button>
+        </>
+      )}
+    </div>
+  );
+}
+
 export default function UltraLuxuryBanner() {
   const router = useRouter();
+  const desktopRef = useRef(null);
 
-  const [form, setForm] = useState({
-    q: "",
-    type: "",
-  });
-
+  const [form, setForm] = useState({ q: "", type: "" });
   const [suggestions, setSuggestions] = useState([]);
   const [loading, setLoading] = useState(false);
 
   const [isFocused, setIsFocused] = useState(false);
   const [isTypeOpen, setIsTypeOpen] = useState(false);
-
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isMobTypeOpen, setIsMobTypeOpen] = useState(false);
 
-  const desktopRef = useRef(null);
-  const mobileRef = useRef(null);
+  const hasQuery = Boolean(form.q.trim() || form.type);
 
   // Build the Explore Cars URL
   const searchURL = () => {
     const params = new URLSearchParams();
-
-    if (form.q.trim()) {
-      params.set("search", form.q.trim());
-    }
-
-    if (form.type) {
-      params.set("type", form.type);
-    }
-
-    return `/cars${params.toString() ? `?${params.toString()}` : ""}`;
+    if (form.q.trim()) params.set("search", form.q.trim());
+    if (form.type) params.set("type", form.type);
+    const qs = params.toString();
+    return `/cars${qs ? `?${qs}` : ""}`;
   };
 
-  // Search suggestions with debounce
+  // Live suggestions: wait 300ms after the last keystroke
   useEffect(() => {
     if (!isFocused && !isSearchOpen) return;
 
-    if (!form.q.trim() && !form.type) {
+    if (!hasQuery) {
       setSuggestions([]);
       setLoading(false);
       return;
@@ -87,38 +154,22 @@ export default function UltraLuxuryBanner() {
         setLoading(true);
 
         const params = new URLSearchParams();
-
-        if (form.q.trim()) {
-          params.set("search", form.q.trim());
-        }
-
-        if (form.type) {
-          params.set("type", form.type);
-        }
-
+        if (form.q.trim()) params.set("search", form.q.trim());
+        if (form.type) params.set("type", form.type);
         params.set("limit", "6");
 
-        const response = await fetch(`${API_URL}/cars?${params.toString()}`, {
+        const res = await fetch(`${API_URL}/cars?${params}`, {
           cache: "no-store",
           signal: controller.signal,
         });
+        if (!res.ok) throw new Error("Unable to search cars");
 
-        if (!response.ok) {
-          throw new Error("Unable to search cars");
-        }
-
-        const data = await response.json();
-
-        setSuggestions(data);
+        const data = await res.json();
+        setSuggestions(Array.isArray(data) ? data : []);
       } catch (error) {
-        if (error.name !== "AbortError") {
-          console.error("Search error:", error);
-          setSuggestions([]);
-        }
+        if (error.name !== "AbortError") setSuggestions([]);
       } finally {
-        if (!controller.signal.aborted) {
-          setLoading(false);
-        }
+        if (!controller.signal.aborted) setLoading(false);
       }
     }, 300);
 
@@ -126,135 +177,94 @@ export default function UltraLuxuryBanner() {
       clearTimeout(timer);
       controller.abort();
     };
-  }, [form.q, form.type, isFocused, isSearchOpen]);
+  }, [form.q, form.type, isFocused, isSearchOpen, hasQuery]);
 
-  // Search submission
+  // Click outside the desktop search closes its pop-ups
+  useEffect(() => {
+    if (!isFocused && !isTypeOpen) return;
+
+    const onDown = (e) => {
+      if (desktopRef.current && !desktopRef.current.contains(e.target)) {
+        setIsFocused(false);
+        setIsTypeOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [isFocused, isTypeOpen]);
+
+  // Esc closes everything
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key !== "Escape") return;
+      setIsFocused(false);
+      setIsTypeOpen(false);
+      setIsSearchOpen(false);
+      setIsMobTypeOpen(false);
+    };
+
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, []);
+
+  // Lock page scroll while the mobile sheet is open
+  useEffect(() => {
+    if (!isSearchOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [isSearchOpen]);
+
+  const closeAll = () => {
+    setIsFocused(false);
+    setIsSearchOpen(false);
+    setIsTypeOpen(false);
+    setIsMobTypeOpen(false);
+  };
+
   const onSubmit = (e) => {
     e.preventDefault();
-
-    setIsFocused(false);
-    setIsSearchOpen(false);
-    setIsTypeOpen(false);
-    setIsMobTypeOpen(false);
-
+    closeAll();
     router.push(searchURL());
   };
 
-  // Select category
+  const goToCar = (car) => {
+    closeAll();
+    router.push(`/cars/${car._id}`);
+  };
+
   const selectCategory = (type) => {
-    setForm((prev) => ({
-      ...prev,
-      type: prev.type === type ? "" : type,
-    }));
-
+    setForm((prev) => ({ ...prev, type }));
     setIsTypeOpen(false);
     setIsMobTypeOpen(false);
-  };
-
-  // Close search overlays
-  const closeMobileSearch = () => {
-    setIsSearchOpen(false);
-    setIsMobTypeOpen(false);
-  };
-
-  // Suggestion component
-  const SuggestionList = ({ onSelect }) => (
-    <div className="suggestion-panel">
-      {loading ? (
-        <div className="suggestion-message">
-          <span className="loader" />
-          Searching the fleet...
-        </div>
-      ) : suggestions.length > 0 ? (
-        <>
-          <div className="suggestion-heading">
-            MATCHING VEHICLES
-            <span>{suggestions.length} found</span>
-          </div>
-
-          {suggestions.map((car) => (
-            <button
-              key={car._id}
-              type="button"
-              className="suggestion-item"
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => onSelect(car)}
-            >
-              <div className="suggestion-image">
-                <img
-                  src={car.imageUrl || "/placeholder-car.png"}
-                  alt={car.name}
-                />
-              </div>
-
-              <div className="suggestion-info">
-                <strong>{car.name}</strong>
-
-                <span>
-                  {car.type || "Vehicle"}
-                  {car.location ? ` • ${car.location}` : ""}
-                </span>
-              </div>
-
-              <div className="suggestion-price">
-                <strong>
-                  ${Number(car.pricePerDay || 0).toLocaleString()}
-                </strong>
-                <span>/ day</span>
-              </div>
-
-              <span className="suggestion-arrow">↗</span>
-            </button>
-          ))}
-
-          <button
-            type="button"
-            className="view-all"
-            onClick={onSubmitFromSuggestion}
-          >
-            View all matching vehicles →
-          </button>
-        </>
-      ) : (
-        <div className="suggestion-message empty-message">
-          <span>🔎</span>
-          <strong>No matching vehicles</strong>
-          <small>Try another name or category.</small>
-        </div>
-      )}
-    </div>
-  );
-
-  // Called by the View All button inside suggestions
-  const onSubmitFromSuggestion = () => {
-    setIsFocused(false);
-    setIsSearchOpen(false);
-    router.push(searchURL());
   };
 
   return (
     <section className={`banner-root ${barlow.className}`}>
-      {/* Background */}
-      <div className="bg-container">
+      {/* Background: responsive sizes, no heavy animation */}
+      <div className="bg-container" aria-hidden="true">
         <img
-          src="https://images.unsplash.com/photo-1503376780353-7e6692767b70?q=80&w=2070&auto=format&fit=crop"
-          alt="Luxury sports car"
+          src={`${BG}&w=1600&q=70`}
+          srcSet={`${BG}&w=640&q=65 640w, ${BG}&w=1080&q=70 1080w, ${BG}&w=1600&q=70 1600w, ${BG}&w=2070&q=70 2070w`}
+          sizes="100vw"
+          alt=""
           className="bg-img"
+          fetchPriority="high"
+          decoding="async"
         />
-
         <div className="bg-overlay" />
-        <div className="light-leak" />
       </div>
 
       {/* Mobile car animation */}
-      <div className="mobile-car-track">
+      <div className="mobile-car-track" aria-hidden="true">
         <div className="mobile-car-wrapper">
           <div className="mobile-car-emoji">🏎️</div>
-          <div className="car-smoke" />
         </div>
       </div>
 
-      {/* Main content */}
       <div className="content-layer">
         <div className="inner-wrap">
           <div className="hero-in">
@@ -273,7 +283,6 @@ export default function UltraLuxuryBanner() {
             </p>
           </div>
 
-          {/* Buttons */}
           <div className="cta-group">
             <Link href="/cars" className="btn-main">
               Explore Your Rides
@@ -292,90 +301,77 @@ export default function UltraLuxuryBanner() {
           {/* Desktop search */}
           <div className="desktop-search-wrap" ref={desktopRef}>
             <form className="search-bar" onSubmit={onSubmit}>
-              {/* Car name */}
               <div className="field">
                 <span className="field-icon">🔍</span>
 
                 <input
                   type="text"
+                  autoComplete="off"
                   placeholder="Search car name... e.g. Porsche"
                   value={form.q}
                   onFocus={() => setIsFocused(true)}
-                  onChange={(e) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      q: e.target.value,
-                    }))
-                  }
+                  onChange={(e) => {
+                    setIsTypeOpen(false);
+                    setForm((prev) => ({ ...prev, q: e.target.value }));
+                  }}
                 />
 
                 {form.q && (
                   <button
                     type="button"
                     className="clear-btn"
-                    onClick={() =>
-                      setForm((prev) => ({
-                        ...prev,
-                        q: "",
-                      }))
-                    }
+                    aria-label="Clear search"
+                    onClick={() => setForm((prev) => ({ ...prev, q: "" }))}
                   >
                     ×
                   </button>
                 )}
               </div>
 
-              {/* Category dropdown */}
               <div className="custom-dropdown">
                 <button
                   type="button"
-                  className={`field dropdown-trigger ${
-                    isTypeOpen ? "active" : ""
-                  }`}
-                  onClick={() => setIsTypeOpen(!isTypeOpen)}
+                  className={`field dropdown-trigger ${isTypeOpen ? "active" : ""}`}
+                  onClick={() => {
+                    setIsTypeOpen(!isTypeOpen);
+                    setIsFocused(false);
+                  }}
                 >
                   <span>🚘</span>
-
                   <span className="selected-type">
                     {form.type || "All Types"}
                   </span>
-
                   <span className="chevron">{isTypeOpen ? "▴" : "▾"}</span>
                 </button>
 
-                <AnimatePresence>
-                  {isTypeOpen && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: 10 }}
-                      className="dropdown-menu"
+                {isTypeOpen && (
+                  <div className="dropdown-menu pop">
+                    <button
+                      type="button"
+                      className={`dropdown-item ${!form.type ? "selected" : ""}`}
+                      onClick={() => {
+                        selectCategory("");
+                        setIsFocused(true);
+                      }}
                     >
+                      All Types
+                    </button>
+
+                    {CATEGORIES.map((type) => (
                       <button
                         type="button"
-                        className={`dropdown-item ${
-                          !form.type ? "selected" : ""
-                        }`}
-                        onClick={() => selectCategory("")}
+                        key={type}
+                        className={`dropdown-item ${form.type === type ? "selected" : ""}`}
+                        onClick={() => {
+                          selectCategory(type);
+                          setIsFocused(true);
+                        }}
                       >
-                        All Types
+                        {type}
                       </button>
-
-                      {CATEGORIES.map((type) => (
-                        <button
-                          type="button"
-                          key={type}
-                          className={`dropdown-item ${
-                            form.type === type ? "selected" : ""
-                          }`}
-                          onClick={() => selectCategory(type)}
-                        >
-                          {type}
-                        </button>
-                      ))}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <button type="submit" className="btn-search">
@@ -383,27 +379,21 @@ export default function UltraLuxuryBanner() {
               </button>
             </form>
 
-            {/* Desktop suggestions */}
-            <AnimatePresence>
-              {isFocused && (form.q.trim() || form.type) && (
-                <motion.div
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 12 }}
-                  className="desktop-suggestions"
-                >
-                  <SuggestionList
-                    onSelect={(car) => {
-                      setIsFocused(false);
-                      router.push(`/cars/${car._id}`);
-                    }}
-                  />
-                </motion.div>
-              )}
-            </AnimatePresence>
+            {isFocused && hasQuery && (
+              <div className="desktop-suggestions pop">
+                <SuggestionList
+                  loading={loading}
+                  cars={suggestions}
+                  onSelect={goToCar}
+                  onViewAll={() => {
+                    closeAll();
+                    router.push(searchURL());
+                  }}
+                />
+              </div>
+            )}
           </div>
 
-          {/* Features */}
           <div className="features-section">
             <div className="features-grid">
               {FEATURES.map((feature) => (
@@ -427,134 +417,105 @@ export default function UltraLuxuryBanner() {
         </div>
       </div>
 
-      {/* Mobile search overlay */}
-      <AnimatePresence>
-        {isSearchOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="mobile-overlay"
-            onMouseDown={(e) => {
-              if (e.target === e.currentTarget) {
-                closeMobileSearch();
-              }
-            }}
-          >
-            <motion.div
-              initial={{ y: "100%" }}
-              animate={{ y: 0 }}
-              exit={{ y: "100%" }}
-              transition={{
-                type: "spring",
-                damping: 25,
-                stiffness: 200,
-              }}
-              className="mobile-sheet"
-            >
-              <div className="sheet-handle" onClick={closeMobileSearch} />
+      {/* Mobile search sheet */}
+      {isSearchOpen && (
+        <div
+          className="mobile-overlay"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) closeAll();
+          }}
+        >
+          <div className="mobile-sheet">
+            <div className="sheet-handle" onClick={closeAll} />
 
-              <div className="mobile-sheet-heading">
-                <p>DISCOVER YOUR NEXT RIDE</p>
-                <h2>Find Your Ride.</h2>
+            <div className="mobile-sheet-heading">
+              <p>DISCOVER YOUR NEXT RIDE</p>
+              <h2>Find Your Ride.</h2>
+            </div>
+
+            <form className="sheet-form" onSubmit={onSubmit}>
+              <div className="sheet-field">
+                <label htmlFor="m-model">CAR MODEL</label>
+
+                <input
+                  id="m-model"
+                  type="text"
+                  autoComplete="off"
+                  placeholder="e.g. Porsche 911"
+                  value={form.q}
+                  onChange={(e) =>
+                    setForm((prev) => ({ ...prev, q: e.target.value }))
+                  }
+                />
               </div>
 
-              <form className="sheet-form" onSubmit={onSubmit}>
-                <div className="sheet-field">
-                  <label>CAR MODEL</label>
+              <div className="sheet-field">
+                <label>VEHICLE CATEGORY</label>
 
-                  <input
-                    type="text"
-                    placeholder="e.g. Porsche 911"
-                    value={form.q}
-                    onFocus={() => setIsFocused(true)}
-                    onChange={(e) =>
-                      setForm((prev) => ({
-                        ...prev,
-                        q: e.target.value,
-                      }))
-                    }
-                  />
-                </div>
-
-                <div className="sheet-field">
-                  <label>VEHICLE CATEGORY</label>
-
-                  <button
-                    type="button"
-                    className={`mobile-dropdown-trigger ${
-                      isMobTypeOpen ? "active" : ""
-                    }`}
-                    onClick={() => setIsMobTypeOpen(!isMobTypeOpen)}
-                  >
-                    <span>{form.type || "All Types"}</span>
-                    <span>{isMobTypeOpen ? "▴" : "▾"}</span>
-                  </button>
-
-                  <AnimatePresence>
-                    {isMobTypeOpen && (
-                      <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: "auto" }}
-                        exit={{ opacity: 0, height: 0 }}
-                        className="mobile-dropdown-menu"
-                      >
-                        <button
-                          type="button"
-                          className="mob-dropdown-item"
-                          onClick={() => selectCategory("")}
-                        >
-                          All Types
-                        </button>
-
-                        {CATEGORIES.map((type) => (
-                          <button
-                            type="button"
-                            key={type}
-                            className={`mob-dropdown-item ${
-                              form.type === type ? "selected" : ""
-                            }`}
-                            onClick={() => selectCategory(type)}
-                          >
-                            {type}
-                          </button>
-                        ))}
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-
-                <button type="submit" className="sheet-btn">
-                  Search Vehicles →
+                <button
+                  type="button"
+                  className={`mobile-dropdown-trigger ${isMobTypeOpen ? "active" : ""}`}
+                  onClick={() => setIsMobTypeOpen(!isMobTypeOpen)}
+                >
+                  <span>{form.type || "All Types"}</span>
+                  <span>{isMobTypeOpen ? "▴" : "▾"}</span>
                 </button>
-              </form>
 
-              {/* Mobile suggestions */}
-              {(form.q.trim() || form.type) && (
-                <div className="mobile-suggestions">
-                  <SuggestionList
-                    onSelect={(car) => {
-                      closeMobileSearch();
-                      router.push(`/cars/${car._id}`);
-                    }}
-                  />
-                </div>
-              )}
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+                {isMobTypeOpen && (
+                  <div className="mobile-dropdown-menu pop">
+                    <button
+                      type="button"
+                      className={`mob-dropdown-item ${!form.type ? "selected" : ""}`}
+                      onClick={() => selectCategory("")}
+                    >
+                      All Types
+                    </button>
+
+                    {CATEGORIES.map((type) => (
+                      <button
+                        type="button"
+                        key={type}
+                        className={`mob-dropdown-item ${form.type === type ? "selected" : ""}`}
+                        onClick={() => selectCategory(type)}
+                      >
+                        {type}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <button type="submit" className="sheet-btn">
+                Search Vehicles →
+              </button>
+            </form>
+
+            {hasQuery && (
+              <div className="mobile-suggestions">
+                <SuggestionList
+                  loading={loading}
+                  cars={suggestions}
+                  onSelect={goToCar}
+                  onViewAll={() => {
+                    closeAll();
+                    router.push(searchURL());
+                  }}
+                />
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       <style jsx global>{`
         .banner-root {
           position: relative;
-          min-height: 100vh;
+          min-height: calc(100svh - 64px);
           width: 100%;
           color: white;
           display: flex;
           align-items: center;
           background: #05080f;
-          overflow: hidden;
           z-index: 1;
         }
 
@@ -562,43 +523,37 @@ export default function UltraLuxuryBanner() {
           position: absolute;
           inset: 0;
           z-index: 0;
+          overflow: hidden;
         }
 
         .bg-img {
           width: 100%;
           height: 100%;
           object-fit: cover;
-          animation: slowZoom 30s infinite alternate ease-in-out;
         }
 
         .bg-overlay {
           position: absolute;
           inset: 0;
-          background: linear-gradient(
-            to right,
-            rgba(5, 8, 15, 0.95) 0%,
-            rgba(5, 8, 15, 0.65) 55%,
-            rgba(5, 8, 15, 0.35) 100%
-          );
-        }
-
-        .light-leak {
-          position: absolute;
-          inset: 0;
-          background: radial-gradient(
-            circle at 20% 30%,
-            rgba(58, 160, 255, 0.15),
-            transparent 50%
-          );
-          animation: lightMove 10s infinite alternate ease-in-out;
-          pointer-events: none;
+          background:
+            radial-gradient(
+              circle at 20% 30%,
+              rgba(58, 160, 255, 0.14),
+              transparent 50%
+            ),
+            linear-gradient(
+              to right,
+              rgba(5, 8, 15, 0.95) 0%,
+              rgba(5, 8, 15, 0.65) 55%,
+              rgba(5, 8, 15, 0.35) 100%
+            );
         }
 
         .content-layer {
           position: relative;
           z-index: 10;
           width: 100%;
-          padding: 100px 5% 60px;
+          padding: 72px 5% 64px;
         }
 
         .inner-wrap {
@@ -607,7 +562,7 @@ export default function UltraLuxuryBanner() {
         }
 
         .hero-in {
-          animation: heroIn 0.8s ease both;
+          animation: heroIn 0.7s ease both;
         }
 
         .eyebrow {
@@ -628,6 +583,7 @@ export default function UltraLuxuryBanner() {
         .gradient-text {
           background: linear-gradient(90deg, #3aa0ff, #a0d2ff);
           -webkit-background-clip: text;
+          background-clip: text;
           -webkit-text-fill-color: transparent;
         }
 
@@ -655,7 +611,9 @@ export default function UltraLuxuryBanner() {
           font-weight: 700;
           text-decoration: none;
           color: white;
-          transition: 0.3s;
+          transition:
+            transform 0.3s,
+            box-shadow 0.3s;
           box-shadow: 0 10px 25px rgba(47, 139, 255, 0.3);
         }
 
@@ -677,7 +635,6 @@ export default function UltraLuxuryBanner() {
         }
 
         /* Desktop search */
-
         .desktop-search-wrap {
           margin-top: 3rem;
           position: relative;
@@ -687,8 +644,8 @@ export default function UltraLuxuryBanner() {
 
         .search-bar {
           background: rgba(255, 255, 255, 0.07);
-          backdrop-filter: blur(24px);
-          -webkit-backdrop-filter: blur(24px);
+          backdrop-filter: blur(14px);
+          -webkit-backdrop-filter: blur(14px);
           padding: 12px;
           border-radius: 22px;
           border: 1px solid rgba(255, 255, 255, 0.15);
@@ -708,7 +665,9 @@ export default function UltraLuxuryBanner() {
           height: 58px;
           border-radius: 14px;
           border: 1px solid rgba(255, 255, 255, 0.08);
-          transition: 0.3s;
+          transition:
+            border-color 0.3s,
+            background 0.3s;
           min-width: 0;
         }
 
@@ -753,7 +712,9 @@ export default function UltraLuxuryBanner() {
           border-radius: 14px;
           font-weight: 800;
           cursor: pointer;
-          transition: 0.3s;
+          transition:
+            background 0.3s,
+            transform 0.3s;
           white-space: nowrap;
         }
 
@@ -793,7 +754,6 @@ export default function UltraLuxuryBanner() {
           background: #0b1224;
           border: 1px solid rgba(255, 255, 255, 0.12);
           border-radius: 15px;
-          overflow: hidden;
           z-index: 999;
           box-shadow: 0 -15px 40px rgba(0, 0, 0, 0.6);
           max-height: 300px;
@@ -810,7 +770,7 @@ export default function UltraLuxuryBanner() {
           background: transparent;
           cursor: pointer;
           font-family: inherit;
-          transition: 0.2s;
+          transition: background 0.2s;
         }
 
         .dropdown-item:hover,
@@ -820,7 +780,6 @@ export default function UltraLuxuryBanner() {
         }
 
         /* Autocomplete */
-
         .desktop-suggestions {
           position: absolute;
           top: calc(100% + 12px);
@@ -835,7 +794,7 @@ export default function UltraLuxuryBanner() {
           border-radius: 18px;
           padding: 12px;
           box-shadow: 0 25px 60px rgba(0, 0, 0, 0.6);
-          overflow: hidden;
+          transition: opacity 0.2s;
         }
 
         .suggestion-heading {
@@ -865,7 +824,7 @@ export default function UltraLuxuryBanner() {
           color: white;
           text-align: left;
           cursor: pointer;
-          transition: 0.2s;
+          transition: background 0.2s;
           font-family: inherit;
         }
 
@@ -880,6 +839,8 @@ export default function UltraLuxuryBanner() {
           border-radius: 9px;
           overflow: hidden;
           background: #18243a;
+          display: grid;
+          place-items: center;
         }
 
         .suggestion-image img {
@@ -980,7 +941,6 @@ export default function UltraLuxuryBanner() {
         }
 
         /* Features */
-
         .features-section {
           margin-top: 3.5rem;
           display: flex;
@@ -1003,7 +963,9 @@ export default function UltraLuxuryBanner() {
           gap: 12px;
           padding: 8px;
           border-radius: 12px;
-          transition: 0.3s;
+          transition:
+            transform 0.3s,
+            background 0.3s;
         }
 
         .feature-card:hover {
@@ -1041,7 +1003,6 @@ export default function UltraLuxuryBanner() {
         }
 
         /* Mobile */
-
         .mobile-car-track {
           display: none;
         }
@@ -1051,21 +1012,25 @@ export default function UltraLuxuryBanner() {
           inset: 0;
           z-index: 10000;
           background: rgba(5, 8, 15, 0.85);
-          backdrop-filter: blur(12px);
+          backdrop-filter: blur(8px);
+          -webkit-backdrop-filter: blur(8px);
           display: flex;
           align-items: flex-end;
           justify-content: center;
+          animation: fadeIn 0.2s ease both;
         }
 
         .mobile-sheet {
           width: 100%;
           max-height: 90dvh;
           overflow-y: auto;
+          overscroll-behavior: contain;
           background: #0b1224;
           border-top-left-radius: 28px;
           border-top-right-radius: 28px;
           padding: 20px 22px 35px;
           box-shadow: 0 -20px 50px rgba(0, 0, 0, 0.6);
+          animation: sheetUp 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) both;
         }
 
         .sheet-handle {
@@ -1184,21 +1149,36 @@ export default function UltraLuxuryBanner() {
           margin-top: 20px;
         }
 
-        @keyframes slowZoom {
+        .pop {
+          animation: popUp 0.18s ease both;
+        }
+
+        @keyframes fadeIn {
           from {
-            transform: scale(1);
+            opacity: 0;
           }
           to {
-            transform: scale(1.1);
+            opacity: 1;
           }
         }
 
-        @keyframes lightMove {
+        @keyframes sheetUp {
           from {
-            transform: translate(-10%, -10%);
+            transform: translateY(100%);
           }
           to {
-            transform: translate(10%, 10%);
+            transform: none;
+          }
+        }
+
+        @keyframes popUp {
+          from {
+            opacity: 0;
+            transform: translateY(8px);
+          }
+          to {
+            opacity: 1;
+            transform: none;
           }
         }
 
@@ -1219,6 +1199,16 @@ export default function UltraLuxuryBanner() {
           }
         }
 
+        @keyframes carDrive {
+          0% {
+            transform: translateX(110vw);
+          }
+          75%,
+          100% {
+            transform: translateX(-20vw);
+          }
+        }
+
         @media (max-width: 1100px) {
           .features-grid {
             grid-template-columns: repeat(2, auto);
@@ -1230,12 +1220,8 @@ export default function UltraLuxuryBanner() {
         }
 
         @media (max-width: 768px) {
-          .banner-root {
-            min-height: 100svh;
-          }
-
           .content-layer {
-            padding: 110px 6% 45px;
+            padding: 56px 6% 45px;
           }
 
           .desktop-search-wrap {
@@ -1302,12 +1288,12 @@ export default function UltraLuxuryBanner() {
             bottom: 12%;
             left: 0;
             width: 100%;
+            overflow: hidden;
             z-index: 5;
             pointer-events: none;
           }
 
           .mobile-car-wrapper {
-            position: relative;
             width: 80px;
             animation: carDrive 8s linear infinite;
           }
@@ -1322,22 +1308,13 @@ export default function UltraLuxuryBanner() {
           }
         }
 
-        @keyframes carDrive {
-          0% {
-            transform: translateX(110vw);
-          }
-          75%,
-          100% {
-            transform: translateX(-20vw);
-          }
-        }
-
         @media (prefers-reduced-motion: reduce) {
-          .bg-img,
-          .light-leak,
           .hero-in,
           .mobile-car-wrapper,
-          .loader {
+          .loader,
+          .pop,
+          .mobile-overlay,
+          .mobile-sheet {
             animation: none !important;
           }
         }
