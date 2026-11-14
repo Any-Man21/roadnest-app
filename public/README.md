@@ -33,6 +33,10 @@
 - Better Auth
 - React Hot Toast
 
+### AI support:
+
+Claude for designs and executions and debugging.
+
 ### Backend & Database
 - Node.js
 - Express.js
